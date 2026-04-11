@@ -6,3 +6,6 @@ env/
 .pytest_cache/
 __pycache__/
 *.pyc
+.mongo-data*/
+.mongo-log/
+*.log

@@ -1,286 +1,192 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Nuage de mots — SD2026</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
-      --bg:      #0d1117;
-      --surface: #161b22;
-      --border:  #21262d;
-      --text:    #e6edf3;
-      --muted:   #8b949e;
-      --accent:  #58a6ff;
-      --amber:   #d29922;
+      --ink:    #18201e;
+      --muted:  #5a6b65;
+      --card:   rgba(255,253,247,0.96);
+      --line:   #ddd4be;
+      --teal:   #0c6b63;
+      --teal-s: #d4ede9;
+      --warn:   #fff1ea;
+      --warn-b: rgba(195,90,40,.35);
+      --warn-t: #8b3b12;
+      --sh:     0 20px 50px rgba(40,30,15,.10);
+      --r:      26px;
     }
+    body { font-family: Georgia,"Times New Roman",serif; color: var(--ink); background: linear-gradient(160deg,#f6f3eb 0%,#ede6d5 100%); min-height: 100vh; }
 
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: "Georgia", serif;
-      min-height: 100vh;
-      padding: 0 1.5rem 5rem;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
+    /* NAV */
+    .nav { position:sticky; top:0; z-index:100; background:rgba(250,248,243,.92); backdrop-filter:blur(14px); border-bottom:1px solid var(--line); padding:0 clamp(16px,4vw,48px); display:flex; align-items:center; height:62px; }
+    .nav-brand { display:flex; align-items:center; gap:10px; text-decoration:none; color:var(--ink); font-weight:700; font-size:1.05rem; margin-right:auto; }
+    .nav-brand svg { color:var(--teal); }
+    .nav-links { display:flex; align-items:center; gap:4px; }
+    .nav-links a { display:inline-flex; align-items:center; gap:7px; padding:8px 14px; border-radius:999px; text-decoration:none; color:var(--muted); font-family:"Trebuchet MS",sans-serif; font-size:.84rem; font-weight:700; transition:background .15s,color .15s; }
+    .nav-links a:hover, .nav-links a.active { background:var(--teal-s); color:var(--teal); }
+    .nav-sep { width:1px; height:24px; background:var(--line); margin:0 8px; }
+    .nav-user { display:inline-flex; align-items:center; gap:8px; padding:8px 16px; border-radius:999px; background:var(--teal); color:#fff; text-decoration:none; font-family:"Trebuchet MS",sans-serif; font-size:.84rem; font-weight:700; }
 
-    header {
-      width: 100%;
-      max-width: 960px;
-      padding: 2.5rem 0 1.5rem;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      gap: 1.2rem;
-      animation: fadeDown .4s ease both;
-    }
+    /* PAGE */
+    .page { width:min(1160px,calc(100% - 32px)); margin:0 auto; padding:36px 0 72px; }
+    .card { background:var(--card); border:1px solid rgba(221,212,190,.9); border-radius:var(--r); box-shadow:var(--sh); }
 
-    header h1 {
-      font-size: 1.8rem;
-      font-weight: normal;
-      letter-spacing: -.02em;
-    }
+    /* HERO */
+    .hero { padding:32px 36px; display:flex; justify-content:space-between; align-items:flex-end; gap:20px; }
+    .badge { display:inline-flex; align-items:center; gap:8px; padding:8px 14px; border-radius:999px; background:var(--teal-s); color:var(--teal); font-family:"Trebuchet MS",sans-serif; font-size:.74rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; }
+    h1 { margin-top:16px; font-size:clamp(2rem,4vw,3.1rem); line-height:1.05; }
+    .hero p { margin-top:12px; color:var(--muted); line-height:1.74; font-size:1.02rem; max-width:58ch; }
+    .btn { display:inline-flex; align-items:center; gap:8px; min-height:48px; padding:0 20px; border-radius:999px; font-family:"Trebuchet MS",sans-serif; font-size:.9rem; font-weight:700; text-decoration:none; cursor:pointer; border:none; transition:transform .15s; }
+    .btn:hover { transform:translateY(-2px); }
+    .btn-primary   { background:var(--teal); color:#fff; }
+    .btn-ghost     { background:#fffdf8; color:var(--ink); border:1px solid var(--line); }
+    .btn-download  { background:var(--teal-s); color:var(--teal); border:1px solid rgba(12,107,99,.2); }
 
-    .back {
-      display: inline-flex;
-      align-items: center;
-      gap: .55rem;
-      padding: .65rem 1rem;
-      border-radius: 999px;
-      border: 1px solid rgba(88, 166, 255, 0.35);
-      background: rgba(88, 166, 255, 0.12);
-      font-family: "Courier New", monospace;
-      font-size: .74rem;
-      letter-spacing: .1em;
-      text-transform: uppercase;
-      color: var(--text);
-      text-decoration: none;
-      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
-    }
+    /* FILTERS */
+    .filters { margin-top:18px; padding:28px; }
+    .filters form { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px; align-items:end; }
+    .field { display:grid; gap:8px; }
+    .field label { font-family:"Trebuchet MS",sans-serif; text-transform:uppercase; letter-spacing:.1em; font-size:.72rem; font-weight:700; color:var(--muted); }
+    .field input, .field select { min-height:52px; border-radius:14px; border:1px solid var(--line); background:#fffdf9; color:var(--ink); padding:0 16px; font-size:.97rem; font-family:inherit; width:100%; }
+    .field input:focus, .field select:focus { outline:3px solid rgba(12,107,99,.14); border-color:rgba(12,107,99,.45); }
+    .actions { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
 
-    .back:hover {
-      color: #ffffff;
-      background: rgba(88, 166, 255, 0.2);
-      border-color: rgba(88, 166, 255, 0.7);
-    }
+    /* ERROR */
+    .error-box { margin-top:16px; padding:16px 20px; border-radius:18px; background:var(--warn); border:1px solid var(--warn-b); color:var(--warn-t); font-size:.97rem; }
 
-    .subtitle {
-      width: 100%;
-      max-width: 960px;
-      margin-top: 1rem;
-      font-size: .88rem;
-      color: var(--muted);
-      font-style: italic;
-      animation: fadeUp .4s .1s ease both;
-    }
+    /* CLOUD RESULT */
+    .cloud-section { margin-top:18px; }
+    .cloud-header { padding:22px 28px 0; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+    .cloud-label { font-family:"Trebuchet MS",sans-serif; text-transform:uppercase; letter-spacing:.1em; font-size:.72rem; font-weight:700; color:var(--teal); }
+    .cloud-title { margin-top:6px; font-size:1.5rem; }
+    .cloud-body { padding:20px 22px 24px; }
+    .cloud-body svg { display:block; width:100%; height:auto; border-radius:18px; }
+    .cloud-note { margin-top:14px; color:var(--muted); line-height:1.72; font-size:.97rem; display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:12px; }
 
-    .filters {
-      width: 100%;
-      max-width: 960px;
-      margin-top: 1.8rem;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 1rem;
-      animation: fadeUp .4s .15s ease both;
-    }
+    /* EMPTY */
+    .empty { margin-top:18px; padding:40px 28px; text-align:center; color:var(--muted); line-height:1.74; font-size:1.04rem; }
 
-    .filters form {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 1rem;
-      align-items: end;
-    }
-
-    .field {
-      display: flex;
-      flex-direction: column;
-      gap: .45rem;
-    }
-
-    .field label {
-      font-size: .85rem;
-      color: var(--muted);
-    }
-
-    .field input,
-    .field select {
-      background: #0f141b;
-      border: 1px solid var(--border);
-      color: var(--text);
-      padding: .75rem .9rem;
-      border-radius: 6px;
-      font-size: .95rem;
-      outline: none;
-    }
-
-    .field input:focus,
-    .field select:focus {
-      border-color: var(--accent);
-    }
-
-    .actions {
-      display: flex;
-      align-items: end;
-    }
-
-    .btn {
-      background: var(--accent);
-      color: #0d1117;
-      border: none;
-      border-radius: 6px;
-      padding: .8rem 1.1rem;
-      font-weight: bold;
-      cursor: pointer;
-      transition: opacity .2s ease;
-    }
-
-    .btn:hover {
-      opacity: .9;
-    }
-
-    .btn-secondary {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      margin-top: 1rem;
-      text-decoration: none;
-      background: transparent;
-      color: var(--accent);
-      border: 1px solid var(--accent);
-    }
-
-    .cloud-wrap {
-      width: 100%;
-      max-width: 960px;
-      margin-top: 1.8rem;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 1rem;
-      overflow: hidden;
-      animation: fadeUp .4s .2s ease both;
-    }
-
-    .cloud-wrap svg {
-      display: block;
-      width: 100%;
-      height: auto;
-      border-radius: 4px;
-    }
-
-    .cloud-note {
-      width: 100%;
-      max-width: 960px;
-      margin-top: .9rem;
-      color: var(--muted);
-      font-size: .85rem;
-      text-align: center;
-    }
-
-    .empty {
-      width: 100%;
-      max-width: 960px;
-      margin-top: 3rem;
-      text-align: center;
-      color: var(--muted);
-      font-style: italic;
-    }
-
-    .error {
-      width: 100%;
-      max-width: 960px;
-      margin-top: 1rem;
-      padding: .9rem 1rem;
-      background: rgba(210, 153, 34, 0.12);
-      border: 1px solid var(--amber);
-      border-radius: 6px;
-      color: #f2cc60;
-    }
-
-    @keyframes fadeDown {
-      from { opacity:0; transform:translateY(-10px); }
-      to   { opacity:1; transform:translateY(0); }
-    }
-
-    @keyframes fadeUp {
-      from { opacity:0; transform:translateY(8px); }
-      to   { opacity:1; transform:translateY(0); }
-    }
+    @media(max-width:740px){ .hero { flex-direction:column; align-items:flex-start; padding:24px; } }
   </style>
 </head>
 <body>
 
-<header>
-  <h1>Nuage de mots</h1>
-  <a class="back" href="/">← Retour à l'accueil</a>
-</header>
+<nav class="nav">
+  <a class="nav-brand" href="/">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+    Veille Actualités
+  </a>
+  <div class="nav-links">
+    <a href="/articles">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h12"/></svg>
+      Articles
+    </a>
+    <a href="/subscriptions">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      Abonnements
+    </a>
+    <a href="/wordcloud" class="active">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
+      Nuage de mots
+    </a>
+    <div class="nav-sep"></div>
+    {% if current_user %}
+    <a href="/profile" class="nav-user">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+      {{ current_user.username }}
+    </a>
+    {% else %}
+    <a href="/login" class="nav-user">Connexion</a>
+    {% endif %}
+  </div>
+</nav>
 
-<p class="subtitle">
-  Mots les plus fréquents dans les titres des articles stockés en base.
-</p>
+<div class="page">
 
-<div class="filters">
-  <form method="GET" action="/wordcloud">
-    <div class="field">
-      <label for="date_debut">Date début</label>
-      <input
-              type="date"
-              id="date_debut"
-              name="date_debut"
-              value="{{ request.args.get('date_debut', '') }}"
-      >
+  <div class="card hero">
+    <div>
+      <div class="badge">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
+        Visualisation
+      </div>
+      <h1>Nuage de mots des titres d'actualités</h1>
+      <p>Choisissez une période, sélectionnez le nombre de mots et générez un rendu SVG interactif téléchargeable.</p>
     </div>
+    <a class="btn btn-ghost" href="/">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+      Accueil
+    </a>
+  </div>
 
-    <div class="field">
-      <label for="date_fin">Date fin</label>
-      <input
-              type="date"
-              id="date_fin"
-              name="date_fin"
-              value="{{ request.args.get('date_fin', '') }}"
-      >
-    </div>
+  <div class="card filters">
+    <form method="GET" action="/wordcloud">
+      <div class="field">
+        <label for="date_debut">Date début</label>
+        <input type="date" id="date_debut" name="date_debut" value="{{ request.args.get('date_debut', '') }}" />
+      </div>
+      <div class="field">
+        <label for="date_fin">Date fin</label>
+        <input type="date" id="date_fin" name="date_fin" value="{{ request.args.get('date_fin', '') }}" />
+      </div>
+      <div class="field">
+        <label for="nb_mots">Nombre de mots (n)</label>
+        <select id="nb_mots" name="nb_mots">
+          <option value="10"  {% if request.args.get('nb_mots') == '10'  %}selected{% endif %}>10 mots</option>
+          <option value="20"  {% if request.args.get('nb_mots') == '20'  %}selected{% endif %}>20 mots</option>
+          <option value="30"  {% if request.args.get('nb_mots', '30') == '30' %}selected{% endif %}>30 mots</option>
+          <option value="50"  {% if request.args.get('nb_mots') == '50'  %}selected{% endif %}>50 mots</option>
+          <option value="100" {% if request.args.get('nb_mots') == '100' %}selected{% endif %}>100 mots</option>
+        </select>
+      </div>
+      <div class="actions">
+        <button class="btn btn-primary" type="submit">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
+          Générer le nuage
+        </button>
+      </div>
+    </form>
+  </div>
 
-    <div class="field">
-      <label for="nb_mots">Nombre de mots</label>
-      <select id="nb_mots" name="nb_mots">
-        <option value="10" {% if request.args.get('nb_mots') == '10' %}selected{% endif %}>10</option>
-        <option value="20" {% if request.args.get('nb_mots') == '20' %}selected{% endif %}>20</option>
-        <option value="30" {% if request.args.get('nb_mots', '30') == '30' %}selected{% endif %}>30</option>
-        <option value="50" {% if request.args.get('nb_mots') == '50' %}selected{% endif %}>50</option>
-        <option value="100" {% if request.args.get('nb_mots') == '100' %}selected{% endif %}>100</option>
-      </select>
-    </div>
+  {% if erreur %}
+  <div class="error-box">{{ erreur }}</div>
+  {% endif %}
 
-    <div class="actions">
-      <button class="btn" type="submit">Générer</button>
+  {% if svg %}
+  <div class="card cloud-section">
+    <div class="cloud-header">
+      <div>
+        <div class="cloud-label">Résultat SVG</div>
+        <div class="cloud-title">
+          {{ request.args.get('nb_mots', '30') }} mots les plus fréquents
+          {% if request.args.get('date_debut') or request.args.get('date_fin') %}
+          — {{ request.args.get('date_debut', '…') }} → {{ request.args.get('date_fin', '…') }}
+          {% endif %}
+        </div>
+      </div>
+      <a class="btn btn-download" href="/wordcloud/download?date_debut={{ request.args.get('date_debut', '') }}&date_fin={{ request.args.get('date_fin', '') }}&nb_mots={{ request.args.get('nb_mots', '30') }}">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Télécharger le SVG
+      </a>
     </div>
-  </form>
+    <div class="cloud-body">
+      {{ svg | safe }}
+      <div class="cloud-note">
+        <span>Les mots génériques (stopwords) sont filtrés automatiquement. Un clic sur un mot ouvre un article associé.</span>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <div class="card empty">
+    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--muted);margin:0 auto 16px;display:block;"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
+    Aucun article disponible pour ces critères.<br>
+    Élargissez la période ou importez d'abord des articles via les abonnements.
+  </div>
+  {% endif %}
+
 </div>
-
-{% if erreur %}
-<div class="error">{{ erreur }}</div>
-{% endif %}
-
-{% if svg %}
-<div class="cloud-wrap">
-  {{ svg | safe }}
-</div>
-<p class="cloud-note">Les mots trop génériques sont filtrés automatiquement. Survole un mot pour le mettre en avant, puis clique dessus pour ouvrir un article lié.</p>
-<a
-  class="btn btn-secondary"
-  href="/wordcloud/download?date_debut={{ request.args.get('date_debut', '') }}&date_fin={{ request.args.get('date_fin', '') }}&nb_mots={{ request.args.get('nb_mots', '30') }}"
->
-  Télécharger le SVG
-</a>
-{% else %}
-<p class="empty">Aucun article trouvé pour les critères sélectionnés.</p>
-{% endif %}
-
 </body>
 </html>

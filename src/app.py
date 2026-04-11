@@ -17,7 +17,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from bson import ObjectId
 from bson.errors import InvalidId
 from flask import Flask, Response, abort, redirect, render_template, request, session
-from pymongo.errors import DuplicateKeyError
+from pymongo.errors import DuplicateKeyError, PyMongoError
 from requests import RequestException
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -683,7 +683,14 @@ def demarrer_scheduler():
 
 
 def render_subscriptions_page(erreur=None, resume=None):
-    liste = list(subscriptions.find().sort("source_name", 1))
+    try:
+        liste = list(subscriptions.find().sort("source_name", 1))
+    except PyMongoError:
+        liste = []
+        erreur = erreur or (
+            "Impossible de contacter MongoDB. Verifie que le serveur MongoDB est lance sur "
+            "localhost:27017, puis recharge la page."
+        )
     return render_template("subscriptions.html", subscriptions=liste, erreur=erreur, resume=resume)
 
 
@@ -763,10 +770,16 @@ def build_wordcloud_svg(date_debut, date_fin, nb_mots):
     if erreur:
         return None, erreur
 
-    documents = list(
-        articles.find(filtre, {"title": 1, "publication_date": 1})
-        .sort("publication_date", -1)
-    )
+    try:
+        documents = list(
+            articles.find(filtre, {"title": 1, "publication_date": 1})
+            .sort("publication_date", -1)
+        )
+    except PyMongoError:
+        return None, (
+            "Impossible de contacter MongoDB. Verifie que le serveur MongoDB est lance sur "
+            "localhost:27017, puis recharge la page."
+        )
 
     titres = [article["title"] for article in documents if article.get("title")]
 
@@ -835,10 +848,13 @@ def login():
     return redirect("/profile")
 
 
-@app.route("/register", methods=["POST"])
+@app.route("/register", methods=["GET", "POST"])
 def register():
     if get_current_user() is not None:
         return redirect("/profile")
+
+    if request.method == "GET":
+        return render_auth_page(mode="register")
 
     username = request.form.get("username", "").strip()
     email = normalize_email(request.form.get("email"))
@@ -922,26 +938,34 @@ def liste_articles():
     consulted_before = request.args.get("consulted_before", "").strip()
     nb_articles = parse_positive_int(request.args.get("nb_articles", "20"), default=20, minimum=1)
 
-    filtre, erreur = build_articles_query(
-        source=source,
-        keyword=keyword,
-        category=category,
-        date_debut=date_debut,
-        date_fin=date_fin,
-        consulted_after=consulted_after,
-        consulted_before=consulted_before,
-    )
-
-    if erreur:
-        resultats = []
-    else:
-        resultats = list(
-            articles.find(filtre)
-            .sort("publication_date", -1)
-            .limit(nb_articles)
+    try:
+        filtre, erreur = build_articles_query(
+            source=source,
+            keyword=keyword,
+            category=category,
+            date_debut=date_debut,
+            date_fin=date_fin,
+            consulted_after=consulted_after,
+            consulted_before=consulted_before,
         )
 
-    sources = sorted([source_name for source_name in articles.distinct("source_name") if source_name])
+        if erreur:
+            resultats = []
+        else:
+            resultats = list(
+                articles.find(filtre)
+                .sort("publication_date", -1)
+                .limit(nb_articles)
+            )
+
+        sources = sorted([source_name for source_name in articles.distinct("source_name") if source_name])
+    except PyMongoError:
+        resultats = []
+        sources = []
+        erreur = (
+            "Impossible de contacter MongoDB. Verifie que le serveur MongoDB est lance sur "
+            "localhost:27017, puis recharge la page."
+        )
 
     return render_template(
         "articles.html",
@@ -1071,7 +1095,7 @@ def generer_svg_interactif(titres, nb_mots=50, word_links=None, word_tooltips=No
         ratio = (math.log(freq) - math.log(freq_min)) / (math.log(freq_max) - math.log(freq_min))
         return int(18 + ratio * 36)
 
-    couleurs = ["#74b0ff", "#56da76", "#f4bf48", "#ff9274", "#92c8ff", "#88ef9e", "#f7d373", "#ffbeaa"]
+    couleurs = ["#0f766e", "#1d8f77", "#c46a2f", "#a4572b", "#2f6f9f", "#6d8b3d", "#9e5e86", "#7a6a48"]
     largeur, hauteur, marge = 960, 580, 18
     rng = random.Random(42)
     boites = []
@@ -1161,19 +1185,19 @@ def generer_svg_interactif(titres, nb_mots=50, word_links=None, word_tooltips=No
         f'aria-label="Nuage de mots interactif">'
         "<defs>"
         '<linearGradient id="cloud-bg" x1="0%" y1="0%" x2="100%" y2="100%">'
-        '<stop offset="0%" stop-color="#171d27"/>'
-        '<stop offset="100%" stop-color="#11161f"/>'
+        '<stop offset="0%" stop-color="#fffdf8"/>'
+        '<stop offset="100%" stop-color="#f1eadc"/>'
         "</linearGradient>"
         "</defs>"
         "<style>"
         ".cloud-word{transition:transform .18s ease,filter .18s ease,fill .18s ease;transform-box:fill-box;transform-origin:center;letter-spacing:-0.02em;}"
         ".cloud-link{text-decoration:none;}"
         ".cloud-link .cloud-word{cursor:pointer;}"
-        ".cloud-link:hover .cloud-word,.cloud-link:focus .cloud-word{transform:scale(1.12);filter:drop-shadow(0 0 12px rgba(255,255,255,.28));fill:#ffffff;}"
+        ".cloud-link:hover .cloud-word,.cloud-link:focus .cloud-word{transform:scale(1.12);filter:drop-shadow(0 0 12px rgba(15,118,110,.24));fill:#0b4f4a;}"
         "</style>"
-        f'<rect x="0.5" y="0.5" width="{largeur - 1}" height="{hauteur - 1}" rx="22" fill="url(#cloud-bg)" stroke="#2a3441"/>'
-        f'<circle cx="{int(largeur * 0.12)}" cy="{int(hauteur * 0.17)}" r="70" fill="#58a6ff" opacity=".035"/>'
-        f'<circle cx="{int(largeur * 0.87)}" cy="{int(hauteur * 0.8)}" r="84" fill="#3fb950" opacity=".03"/>'
+        f'<rect x="0.5" y="0.5" width="{largeur - 1}" height="{hauteur - 1}" rx="22" fill="url(#cloud-bg)" stroke="#d7c8ad"/>'
+        f'<circle cx="{int(largeur * 0.12)}" cy="{int(hauteur * 0.17)}" r="70" fill="#0f766e" opacity=".05"/>'
+        f'<circle cx="{int(largeur * 0.87)}" cy="{int(hauteur * 0.8)}" r="84" fill="#c46a2f" opacity=".045"/>'
         + "".join(elements)
         + "</svg>"
     )
@@ -1354,8 +1378,16 @@ def configure_logging():
 
 def main():
     configure_logging()
-    ensure_indexes()
-    demarrer_scheduler()
+    try:
+        ensure_indexes()
+    except RuntimeError as exc:
+        LOGGER.warning("Demarrage sans MongoDB disponible: %s", exc)
+
+    try:
+        demarrer_scheduler()
+    except Exception as exc:
+        LOGGER.warning("Scheduler non demarre car MongoDB est indisponible: %s", exc)
+
     app.run(
         debug=SETTINGS.flask_debug,
         host=SETTINGS.flask_host,
