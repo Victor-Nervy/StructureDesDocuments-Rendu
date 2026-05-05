@@ -16,6 +16,14 @@ if str(SRC) not in sys.path:
 import app as app_module
 
 
+class FakeResponse:
+    def __init__(self, content):
+        self.content = content.encode("utf-8")
+
+    def raise_for_status(self):
+        return None
+
+
 class AppTests(unittest.TestCase):
     def setUp(self):
         app_module.app.config["TESTING"] = True
@@ -55,6 +63,41 @@ class AppTests(unittest.TestCase):
         self.assertFalse(app_module.is_valid_http_url("ftp://example.com/file.xml"))
         self.assertFalse(app_module.is_valid_http_url("example.com/no-scheme"))
 
+    def test_http_session_ignores_system_proxy_environment(self):
+        session = app_module.create_http_session()
+
+        self.assertFalse(session.trust_env)
+
+    def test_lire_sitemap_follows_sitemap_index_children(self):
+        responses = {
+            "https://example.com/sitemap.xml": FakeResponse(
+                """<?xml version="1.0" encoding="UTF-8"?>
+                <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+                  <sitemap><loc>https://example.com/sitemap-news.xml</loc></sitemap>
+                </sitemapindex>"""
+            ),
+            "https://example.com/sitemap-news.xml": FakeResponse(
+                """<?xml version="1.0" encoding="UTF-8"?>
+                <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+                        xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">
+                  <url>
+                    <loc>https://example.com/article</loc>
+                    <news:news>
+                      <news:title>Titre test</news:title>
+                      <news:publication_date>2026-05-04T10:00:00+00:00</news:publication_date>
+                    </news:news>
+                  </url>
+                </urlset>"""
+            ),
+        }
+
+        with patch.object(app_module.HTTP_SESSION, "get", side_effect=lambda url, timeout: responses[url]):
+            resultats = app_module.lire_sitemap("https://example.com/sitemap.xml")
+
+        self.assertEqual(len(resultats), 1)
+        self.assertEqual(resultats[0]["loc"], "https://example.com/article")
+        self.assertEqual(resultats[0]["title"], "Titre test")
+
     def test_parse_positive_int_rejects_zero(self):
         self.assertIsNone(app_module.parse_positive_int("0", default=None, minimum=1))
         self.assertEqual(app_module.parse_positive_int("15", default=None, minimum=1), 15)
@@ -72,6 +115,24 @@ class AppTests(unittest.TestCase):
         )
 
         self.assertEqual(normalized, "https://example.com/images/couverture.jpg")
+
+    def test_normalize_image_url_keeps_valid_commas_in_image_paths(self):
+        normalized = app_module.normalize_image_url(
+            "https://www.lequipe.fr/article",
+            "https://www.lequipe.fr/_medias/img-photo-jpg/photo/123/0:0,1500:1000-640-427-75/image.jpg",
+        )
+
+        self.assertEqual(
+            normalized,
+            "https://www.lequipe.fr/_medias/img-photo-jpg/photo/123/0:0,1500:1000-640-427-75/image.jpg",
+        )
+
+    def test_should_refresh_article_image_rejects_incomplete_lequipe_sitemap_url(self):
+        self.assertTrue(
+            app_module.should_refresh_article_image(
+                "https://medias.lequipe.fr/img-photo-jpg/photo/123/0:0"
+            )
+        )
 
     def test_generer_svg_returns_none_for_only_stopwords(self):
         svg = app_module.generer_svg(["le la les de du des"], nb_mots=10)
@@ -185,6 +246,35 @@ class AppTests(unittest.TestCase):
         mock_fetch_image.assert_not_called()
         inserted_document = mock_articles.insert_one.call_args.args[0]
         self.assertEqual(inserted_document["image_url"], "https://example.com/images/couverture.jpg")
+
+    def test_inserer_articles_refreshes_broken_duplicate_image(self):
+        article = {
+            "loc": "https://www.lequipe.fr/article",
+            "title": "Titre",
+            "publication_date": "2026-03-10",
+            "image_url": "https://medias.lequipe.fr/img-photo-jpg/photo/123/0:0",
+        }
+
+        with patch.object(app_module, "articles") as mock_articles, patch.object(
+            app_module,
+            "recuperer_image_article",
+            return_value="https://www.lequipe.fr/_medias/img-photo-jpg/photo/123/0:0,1500:1000-640-427-75/image.jpg",
+        ):
+            mock_articles.find_one.return_value = {
+                "_id": "existing",
+                "image_url": "https://medias.lequipe.fr/img-photo-jpg/photo/123/0:0",
+            }
+
+            inseres, doublons = app_module.inserer_articles([article], "sub-id", "Source test")
+
+        self.assertEqual(inseres, 0)
+        self.assertEqual(doublons, 1)
+        mock_articles.update_one.assert_called_once()
+        update_document = mock_articles.update_one.call_args.args[1]
+        self.assertEqual(
+            update_document["$set"]["image_url"],
+            "https://www.lequipe.fr/_medias/img-photo-jpg/photo/123/0:0,1500:1000-640-427-75/image.jpg",
+        )
 
     def test_wordcloud_download_returns_svg_attachment(self):
         with patch.object(app_module, "build_wordcloud_svg", return_value=("<svg></svg>", None)):

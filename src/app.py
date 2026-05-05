@@ -147,6 +147,7 @@ IMAGE_TAG_PATTERNS = [
 ]
 
 IMAGE_IGNORED_HINTS = ("logo", "icon", "favicon", "sprite", "avatar", "placeholder")
+MAX_SITEMAP_INDEX_CHILDREN = 5
 
 scheduler = BackgroundScheduler(
     timezone=SETTINGS.scheduler_timezone,
@@ -167,6 +168,7 @@ def create_http_session():
     )
     adapter = HTTPAdapter(max_retries=retry_strategy)
     session = requests.Session()
+    session.trust_env = False
     session.headers.update({"User-Agent": SETTINGS.http_user_agent})
     session.mount("http://", adapter)
     session.mount("https://", adapter)
@@ -410,7 +412,6 @@ def normalize_image_url(article_url, raw_url):
     if candidate.lower().startswith("data:"):
         return None
 
-    candidate = candidate.split(",")[0].strip()
     candidate = candidate.split(" ")[0].strip()
     candidate = urljoin(article_url, candidate)
 
@@ -444,6 +445,19 @@ def extract_sitemap_image_url(url_tag, article_url):
     return None
 
 
+def should_refresh_article_image(image_url):
+    if not image_url:
+        return True
+
+    lowered = image_url.lower()
+    if "medias.lequipe.fr/img-photo" in lowered:
+        return True
+    if "lequipe.fr/_medias/" in lowered and not re.search(r"\.(jpg|jpeg|png|webp|gif)(?:[?#].*)?$", lowered):
+        return True
+
+    return False
+
+
 def iter_candidate_image_urls(article_url, html):
     seen = set()
 
@@ -456,9 +470,30 @@ def iter_candidate_image_urls(article_url, html):
                     yield candidate
 
 
-def lire_sitemap(url):
+def get_xml_local_name(tag):
+    return str(tag or "").rsplit("}", 1)[-1]
+
+
+def sort_sitemap_index_urls(urls):
+    return sorted(
+        urls,
+        key=lambda candidate: (
+            "news" not in candidate.lower(),
+            "recent" not in candidate.lower(),
+            candidate,
+        ),
+    )
+
+
+def lire_sitemap(url, _depth=0, _seen=None):
     if not is_valid_http_url(url):
         raise ValueError("L'URL du sitemap doit etre une URL HTTP(S) valide.")
+
+    if _seen is None:
+        _seen = set()
+    if url in _seen:
+        return []
+    _seen.add(url)
 
     try:
         response = HTTP_SESSION.get(url, timeout=SETTINGS.request_timeout_seconds)
@@ -468,6 +503,28 @@ def lire_sitemap(url):
         raise RuntimeError(f"Impossible de lire le sitemap: {exc}") from exc
     except ET.ParseError as exc:
         raise ValueError(f"Le contenu du sitemap est invalide: {exc}") from exc
+
+    if get_xml_local_name(root.tag) == "sitemapindex":
+        if _depth >= 2:
+            return []
+
+        child_urls = [
+            loc.text.strip()
+            for loc in root.findall("sitemap:sitemap/sitemap:loc", SITEMAP_NAMESPACES)
+            if loc.text and is_valid_http_url(loc.text.strip())
+        ]
+        news_child_urls = [child_url for child_url in child_urls if "news" in child_url.lower()]
+        if news_child_urls:
+            child_urls = news_child_urls
+        resultats_index = []
+
+        for child_url in sort_sitemap_index_urls(child_urls)[:MAX_SITEMAP_INDEX_CHILDREN]:
+            try:
+                resultats_index.extend(lire_sitemap(child_url, _depth=_depth + 1, _seen=_seen))
+            except (RuntimeError, ValueError) as exc:
+                LOGGER.warning("Sous-sitemap ignore (%s): %s", child_url, exc)
+
+        return resultats_index
 
     resultats = []
 
@@ -530,7 +587,8 @@ def inserer_articles(liste, subscription_id, source_name):
         image_url = normalize_image_url(url_article, item.get("image_url"))
 
         if article_existant is None:
-            image_url = image_url or recuperer_image_article(url_article)
+            if should_refresh_article_image(image_url):
+                image_url = recuperer_image_article(url_article) or image_url
             document = {
                 "subscription_id": subscription_id,
                 "source_name": source_name,
@@ -552,8 +610,8 @@ def inserer_articles(liste, subscription_id, source_name):
         else:
             nb_doublons += 1
 
-        if article_existant and not article_existant.get("image_url"):
-            image_url = image_url or recuperer_image_article(url_article)
+        if article_existant and should_refresh_article_image(article_existant.get("image_url")):
+            image_url = recuperer_image_article(url_article) or image_url
             if image_url:
                 articles.update_one(
                     {"_id": article_existant["_id"]},
