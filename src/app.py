@@ -10,7 +10,7 @@ from collections import Counter
 from datetime import datetime, timezone
 from functools import wraps
 from html import escape, unescape
-from urllib.parse import urljoin, urlparse
+from urllib.parse import quote_plus, urljoin, urlparse
 
 import requests
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -23,7 +23,7 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from BdMongo import articles, consultations, ensure_indexes, subscriptions, users
+from BdMongo import articles, categories, consultations, ensure_indexes, subscriptions, users
 from config import load_settings
 
 
@@ -258,10 +258,72 @@ def login_required(view_func):
     @wraps(view_func)
     def wrapped_view(*args, **kwargs):
         if get_current_user() is None:
-            return redirect("/login")
+            next_url = request.path
+            if request.query_string:
+                next_url = f"{next_url}?{request.query_string.decode()}"
+            return redirect(f"/login?next={quote_plus(next_url)}")
         return view_func(*args, **kwargs)
 
     return wrapped_view
+
+
+def normalize_category_name(name):
+    """Nettoie et normalise le nom de la catégorie fournit par l'utilisateur."""
+    return str(name or "").strip()
+
+
+def validate_category_name(name):
+    """Valide le nom de catégorie et renvoie un message d'erreur si nécessaire."""
+    normalized = normalize_category_name(name)
+    if not normalized:
+        return None, "Le nom de categorie est obligatoire."
+    if len(normalized) > 80:
+        return None, "Le nom de categorie doit contenir au maximum 80 caracteres."
+    return normalized, None
+
+
+def get_user_categories(user_id):
+    return list(categories.find({"user_id": user_id}).sort("name", 1))
+
+
+def parse_object_id(raw_value):
+    if not raw_value:
+        return None
+
+    cleaned = str(raw_value).strip()
+    if cleaned.startswith("ObjectId(") and cleaned.endswith(")"):
+        cleaned = cleaned[len("ObjectId("):-1].strip("'\"")
+
+    try:
+        return ObjectId(cleaned)
+    except (InvalidId, TypeError):
+        return None
+
+
+def get_user_category_by_id(category_id, user_id):
+    oid = parse_object_id(category_id)
+    if oid is None:
+        return None
+    return categories.find_one({"_id": oid, "user_id": user_id})
+
+
+def resolve_article_by_url_or_id(raw_value):
+    """Retourne l'article MongoDB correspondant à une URL ou un identifiant passé par l'utilisateur."""
+    if not raw_value:
+        return None
+
+    cleaned = str(raw_value).strip()
+    oid = parse_object_id(cleaned)
+
+    if oid is not None:
+        article = articles.find_one({"_id": oid})
+        if article is not None:
+            return article
+
+    if is_valid_http_url(cleaned):
+        return articles.find_one({"url": cleaned})
+
+    return None
 
 
 @app.context_processor
@@ -752,18 +814,34 @@ def render_subscriptions_page(erreur=None, resume=None):
     return render_template("subscriptions.html", subscriptions=liste, erreur=erreur, resume=resume)
 
 
-def build_user_history(user_id, limit=30):
+def build_user_history(user_id, limit=40, keyword=None, date_start=None, date_end=None):
+    consultation_filter = {"user_id": user_id}
+
+    date_filter = {}
+    if date_start:
+        date_filter["$gte"] = date_start
+    if date_end:
+        date_filter["$lte"] = date_end
+    if date_filter:
+        consultation_filter["consulted_at"] = date_filter
+
+    fetch_limit = limit * 5 if keyword else limit
     consultation_items = list(
-        consultations.find({"user_id": user_id})
+        consultations.find(consultation_filter)
         .sort("consulted_at", -1)
-        .limit(limit)
+        .limit(fetch_limit)
     )
 
     article_ids = [item.get("article_id") for item in consultation_items if item.get("article_id")]
+
+    article_query = {"_id": {"$in": article_ids}}
+    if keyword:
+        article_query["title"] = {"$regex": re.escape(keyword), "$options": "i"}
+
     article_map = {
         article["_id"]: article
         for article in articles.find(
-            {"_id": {"$in": article_ids}},
+            article_query,
             {"title": 1, "source_name": 1, "publication_date": 1, "image_url": 1},
         )
     }
@@ -773,7 +851,6 @@ def build_user_history(user_id, limit=30):
         article = article_map.get(item.get("article_id"))
         if article is None:
             continue
-
         history.append(
             {
                 "article_id": article["_id"],
@@ -784,6 +861,8 @@ def build_user_history(user_id, limit=30):
                 "consulted_at": item.get("consulted_at"),
             }
         )
+        if len(history) >= limit:
+            break
 
     return history
 
@@ -852,11 +931,11 @@ def build_wordcloud_svg(date_debut, date_fin, nb_mots):
         if not title:
             continue
 
-        article_href = f"/article/{article['_id']}/open"
         for mot in set(extract_title_words(title)):
             word_key = normalize_word_key(mot)
-            word_links.setdefault(word_key, article_href)
-            word_tooltips.setdefault(word_key, title)
+            if word_key not in word_links:
+                word_links[word_key] = f"/articles?keyword={quote_plus(mot)}"
+                word_tooltips[word_key] = f"Rechercher : {mot}"
 
     return generer_svg_interactif(
         titres,
@@ -903,7 +982,10 @@ def login():
     users.update_one({"_id": user["_id"]}, {"$set": {"last_login_at": now}})
     user["last_login_at"] = now
     login_user(user)
-    return redirect("/profile")
+    next_url = (request.form.get("next") or request.args.get("next") or "").strip()
+    if not next_url or not next_url.startswith("/"):
+        next_url = "/profile"
+    return redirect(next_url)
 
 
 @app.route("/register", methods=["GET", "POST"])
@@ -963,17 +1045,39 @@ def profile():
     if active_tab not in {"profile", "history"}:
         active_tab = "profile"
 
-    history = build_user_history(user["_id"], limit=40)
+    hist_keyword = request.args.get("hist_keyword", "").strip()
+    hist_after = request.args.get("hist_after", "").strip()
+    hist_before = request.args.get("hist_before", "").strip()
+
+    date_start = None
+    date_end = None
+    try:
+        if hist_after:
+            date_start = parse_datetime_local(hist_after)
+        if hist_before:
+            date_end = parse_datetime_local(hist_before)
+    except ValueError:
+        pass
+
+    history = build_user_history(
+        user["_id"],
+        limit=40,
+        keyword=hist_keyword or None,
+        date_start=date_start,
+        date_end=date_end,
+    )
+
     history_count = consultations.count_documents({"user_id": user["_id"]})
     consulted_article_ids = consultations.distinct("article_id", {"user_id": user["_id"]})
     sources_count = len(
         [source for source in articles.distinct("source_name", {"_id": {"$in": consulted_article_ids}}) if source]
     )
 
+    last_consult = list(consultations.find({"user_id": user["_id"]}).sort("consulted_at", -1).limit(1))
     stats = {
         "history_count": history_count,
         "sources_count": sources_count,
-        "last_consulted_at": history[0]["consulted_at"] if history else None,
+        "last_consulted_at": last_consult[0].get("consulted_at") if last_consult else None,
     }
 
     return render_template(
@@ -982,6 +1086,9 @@ def profile():
         history=history,
         stats=stats,
         active_tab=active_tab,
+        hist_keyword=hist_keyword,
+        hist_after=hist_after,
+        hist_before=hist_before,
     )
 
 
@@ -996,6 +1103,10 @@ def liste_articles():
     consulted_before = request.args.get("consulted_before", "").strip()
     nb_articles = parse_positive_int(request.args.get("nb_articles", "20"), default=20, minimum=1)
 
+    erreur = None
+    resultats = []
+    sources = []
+
     try:
         filtre, erreur = build_articles_query(
             source=source,
@@ -1007,16 +1118,29 @@ def liste_articles():
             consulted_before=consulted_before,
         )
 
-        if erreur:
-            resultats = []
-        else:
-            resultats = list(
-                articles.find(filtre)
-                .sort("publication_date", -1)
-                .limit(nb_articles)
-            )
+        if not erreur:
+            if source:
+                # Source spécifique — filtre contient déjà source_name
+                resultats = list(
+                    articles.find(filtre).sort("publication_date", -1).limit(nb_articles)
+                )
+            else:
+                # Toutes les sources : requête find() séparée par source
+                # pour garantir N articles de chaque source indépendamment
+                src_names = sorted(
+                    [s for s in articles.distinct("source_name") if s],
+                    key=str.lower,
+                )
+                for sname in src_names:
+                    src_filter = {**filtre, "source_name": sname}
+                    src_arts = list(
+                        articles.find(src_filter).sort("publication_date", -1).limit(nb_articles)
+                    )
+                    resultats.extend(src_arts)
 
-        sources = sorted([source_name for source_name in articles.distinct("source_name") if source_name])
+        article_src = set(articles.distinct("source_name"))
+        sub_src = set(subscriptions.distinct("source_name", {"active": True}))
+        sources = sorted([s for s in (article_src | sub_src) if s])
     except PyMongoError:
         resultats = []
         sources = []
@@ -1025,9 +1149,36 @@ def liste_articles():
             "localhost:27017, puis recharge la page."
         )
 
+    # Groupement par source en Python — plus fiable que Jinja2 groupby
+    articles_by_source = {}
+    for article in resultats:
+        sname = article.get("source_name") or "Source inconnue"
+        if sname not in articles_by_source:
+            articles_by_source[sname] = []
+        articles_by_source[sname].append(article)
+    grouped_articles = sorted(articles_by_source.items(), key=lambda x: x[0].lower())
+
+    current_user = get_current_user()
+    user_categories = []
+    if current_user is not None:
+        raw_cats = get_user_categories(current_user["_id"])
+        for cat in raw_cats:
+            cat_arts = []
+            if cat.get("article_ids"):
+                try:
+                    cat_arts = list(
+                        articles.find({"_id": {"$in": cat["article_ids"]}})
+                        .sort("publication_date", -1)
+                    )
+                except PyMongoError:
+                    pass
+            cat["_articles"] = cat_arts
+            user_categories.append(cat)
+
     return render_template(
         "articles.html",
         articles=resultats,
+        grouped_articles=grouped_articles,
         sources=sources,
         categories=CATEGORY_CHOICES,
         source=source,
@@ -1038,8 +1189,194 @@ def liste_articles():
         consulted_after=consulted_after,
         consulted_before=consulted_before,
         nb_articles=nb_articles,
-        erreur=erreur,
+        erreur=erreur or request.args.get("error"),
+        success=request.args.get("success"),
+        user_categories=user_categories,
     )
+
+
+# --- Gestion des categories personnelles utilisateurs (integrees dans /articles) ---
+
+def _require_login_for_cat():
+    """Retourne l'utilisateur courant ou None si non connecté."""
+    return get_current_user()
+
+
+@app.route("/categories")
+@app.route("/categories/")
+def liste_categories():
+    return redirect("/articles#categories")
+
+
+@app.route("/categories/add", methods=["POST"])
+@app.route("/categories/add/", methods=["POST"])
+def ajouter_categorie():
+    user = _require_login_for_cat()
+    if user is None:
+        return redirect("/login?next=%2Farticles%23categories")
+
+    name, erreur = validate_category_name(request.form.get("name"))
+    if erreur:
+        return redirect(f"/articles?error={quote_plus(erreur)}#categories")
+
+    description = str(request.form.get("description", "")).strip()
+    now = datetime.now(timezone.utc)
+
+    try:
+        categories.insert_one(
+            {
+                "user_id": user["_id"],
+                "name": name,
+                "description": description,
+                "article_ids": [],
+                "created_at": now,
+                "updated_at": now,
+            }
+        )
+    except DuplicateKeyError:
+        return redirect(f"/articles?error={quote_plus('Une categorie existe deja avec ce nom.')}#categories")
+
+    return redirect(f"/articles?success={quote_plus('Categorie creee avec succes.')}#categories")
+
+
+@app.route("/categories/<id>")
+@app.route("/categories/<id>/")
+def voir_categorie(id):
+    return redirect(f"/articles?cat={id}#categories")
+
+
+@app.route("/categories/<id>/update", methods=["POST"])
+@app.route("/categories/<id>/update/", methods=["POST"])
+def modifier_categorie(id):
+    user = _require_login_for_cat()
+    if user is None:
+        return redirect("/login?next=%2Farticles%23categories")
+
+    category = get_user_category_by_id(id, user["_id"])
+    if category is None:
+        return redirect(f"/articles?error={quote_plus('Categorie introuvable ou inaccessible.')}#categories")
+
+    name, erreur = validate_category_name(request.form.get("name"))
+    if erreur:
+        return redirect(f"/articles?cat={id}&error={quote_plus(erreur)}#categories")
+
+    description = str(request.form.get("description", "")).strip()
+    update_data = {
+        "name": name,
+        "description": description,
+        "updated_at": datetime.now(timezone.utc),
+    }
+
+    try:
+        categories.update_one({"_id": category["_id"]}, {"$set": update_data})
+    except DuplicateKeyError:
+        return redirect(f"/articles?cat={id}&error={quote_plus('Une categorie existe deja avec ce nom.')}#categories")
+
+    return redirect(f"/articles?cat={id}&success={quote_plus('Categorie mise a jour.')}#categories")
+
+
+@app.route("/categories/<id>/delete", methods=["POST"])
+@app.route("/categories/<id>/delete/", methods=["POST"])
+def supprimer_categorie(id):
+    user = _require_login_for_cat()
+    if user is None:
+        return redirect("/login?next=%2Farticles%23categories")
+
+    category = get_user_category_by_id(id, user["_id"])
+    if category is None:
+        return redirect(f"/articles?error={quote_plus('Categorie introuvable ou inaccessible.')}#categories")
+
+    categories.delete_one({"_id": category["_id"]})
+    return redirect(f"/articles?success={quote_plus('Categorie supprimee.')}#categories")
+
+
+@app.route("/categories/<id>/add-article", methods=["POST"])
+@app.route("/categories/<id>/add-article/", methods=["POST"])
+def ajouter_article_categorie(id):
+    user = _require_login_for_cat()
+    if user is None:
+        return redirect("/login?next=%2Farticles%23categories")
+
+    category = get_user_category_by_id(id, user["_id"])
+    if category is None:
+        return redirect(f"/articles?error={quote_plus('Categorie introuvable ou inaccessible.')}#categories")
+
+    article_value = str(request.form.get("article_url_or_id", "")).strip()
+    article = resolve_article_by_url_or_id(article_value)
+    if article is None:
+        return redirect(f"/articles?cat={id}&error={quote_plus('Aucun article trouve pour ce lien ou identifiant.')}#categories")
+
+    if article["_id"] in category.get("article_ids", []):
+        return redirect(f"/articles?cat={id}&error={quote_plus('Cet article est deja dans la categorie.')}#categories")
+
+    categories.update_one(
+        {"_id": category["_id"]},
+        {
+            "$addToSet": {"article_ids": article["_id"]},
+            "$set": {"updated_at": datetime.now(timezone.utc)},
+        },
+    )
+    return redirect(f"/articles?cat={id}&success={quote_plus('Article ajoute a la categorie.')}#categories")
+
+
+@app.route("/categories/<id>/remove-article", methods=["POST"])
+@app.route("/categories/<id>/remove-article/", methods=["POST"])
+def supprimer_article_categorie(id):
+    user = _require_login_for_cat()
+    if user is None:
+        return redirect("/login?next=%2Farticles%23categories")
+
+    category = get_user_category_by_id(id, user["_id"])
+    if category is None:
+        return redirect(f"/articles?error={quote_plus('Categorie introuvable ou inaccessible.')}#categories")
+
+    article_id_raw = request.form.get("article_id", "").strip()
+    try:
+        article_oid = ObjectId(article_id_raw)
+    except (InvalidId, TypeError):
+        return redirect(f"/articles?cat={id}&error={quote_plus('Identifiant d article invalide.')}#categories")
+
+    categories.update_one(
+        {"_id": category["_id"]},
+        {"$pull": {"article_ids": article_oid}, "$set": {"updated_at": datetime.now(timezone.utc)}},
+    )
+    return redirect(f"/articles?cat={id}&success={quote_plus('Article retire de la categorie.')}#categories")
+
+
+@app.route("/categories/add-article", methods=["POST"])
+@app.route("/categories/add-article/", methods=["POST"])
+def ajouter_article_categorie_depuis_articles():
+    user = _require_login_for_cat()
+    if user is None:
+        return redirect("/login?next=%2Farticles%23categories")
+
+    category_id = request.form.get("category_id", "").strip()
+    article_id_raw = request.form.get("article_id", "").strip()
+
+    category = get_user_category_by_id(category_id, user["_id"])
+    if category is None:
+        return redirect(f"/articles?error={quote_plus('Categorie invalide.')}#categories")
+
+    try:
+        article_oid = ObjectId(article_id_raw)
+    except (InvalidId, TypeError):
+        return redirect(f"/articles?error={quote_plus('Identifiant d article invalide.')}#categories")
+
+    article = articles.find_one({"_id": article_oid})
+    if article is None:
+        return redirect(f"/articles?error={quote_plus('Article inexistant.')}#categories")
+
+    if article_oid in category.get("article_ids", []):
+        return redirect(f"/articles?cat={category_id}&error={quote_plus('Cet article est deja dans la categorie.')}#categories")
+
+    categories.update_one(
+        {"_id": category["_id"]},
+        {
+            "$addToSet": {"article_ids": article_oid},
+            "$set": {"updated_at": datetime.now(timezone.utc)},
+        },
+    )
+    return redirect(f"/articles?cat={category_id}&success={quote_plus('Article ajoute a la categorie.')}#categories")
 
 
 @app.route("/article/<id>/open")
@@ -1145,93 +1482,132 @@ def generer_svg_interactif(titres, nb_mots=50, word_links=None, word_tooltips=No
     freq_values = [freq for _, _, freq in frequences]
     freq_max = max(freq_values)
     freq_min = min(freq_values)
+    density_ratio = min(1.0, max(0.0, (nb_mots - 100) / 150))
+    min_font_size = 15 - int(3 * density_ratio)
+    max_font_size = 53 - int(15 * density_ratio)
+    default_font_size = 32 - int(8 * density_ratio)
 
     def taille(freq):
         if freq_max == freq_min:
-            return 34
+            return default_font_size
 
         ratio = (math.log(freq) - math.log(freq_min)) / (math.log(freq_max) - math.log(freq_min))
-        return int(18 + ratio * 36)
+        return int(min_font_size + ratio * (max_font_size - min_font_size))
 
-    couleurs = ["#0f766e", "#1d8f77", "#c46a2f", "#a4572b", "#2f6f9f", "#6d8b3d", "#9e5e86", "#7a6a48"]
-    largeur, hauteur, marge = 960, 580, 18
+    couleurs = ["#8b18b6", "#2468d8", "#28a745", "#1ca9c9", "#b23a48", "#7a2cc8", "#168f61", "#2d57c8"]
+    largeur, hauteur, marge = 960, 580, 8
     rng = random.Random(42)
     boites = []
     centre_x, centre_y = largeur / 2, hauteur / 2
+    espace_mots = 1.2
+    collision_scale = 1.0
 
     def chevauche(x_pos, y_pos, width, height):
-        x1 = x_pos - width / 2 - 8
-        y1 = y_pos - height - 8
-        x2 = x_pos + width / 2 + 8
-        y2 = y_pos + 8
+        compact_width = width * collision_scale
+        compact_height = height * collision_scale
+        x1 = x_pos - compact_width / 2 - espace_mots
+        y1 = y_pos - compact_height / 2 - espace_mots
+        x2 = x_pos + compact_width / 2 + espace_mots
+        y2 = y_pos + compact_height / 2 + espace_mots
         return any(x1 < bx2 and x2 > bx1 and y1 < by2 and y2 > by1 for bx1, by1, bx2, by2 in boites)
 
     def hors_cadre(x_pos, y_pos, width, height):
         return (
             x_pos - width / 2 < marge
             or x_pos + width / 2 > largeur - marge
-            or y_pos - height < marge
-            or y_pos > hauteur - marge
+            or y_pos - height / 2 < marge
+            or y_pos + height / 2 > hauteur - marge
         )
+
+    def get_word_orientation(index, word, font_size):
+        if index == 0 or len(word) > 11 or font_size >= 44:
+            return 0
+        orientations = [0, 0, -90, 0, 0, 18, 0, -18, 0, 90, 0, 0, 12, 0, -12]
+        return orientations[index % len(orientations)]
+
+    def rotated_bounds(text_width, text_height, rotation):
+        angle = math.radians(rotation)
+        cos_angle = abs(math.cos(angle))
+        sin_angle = abs(math.sin(angle))
+        return (
+            text_width * cos_angle + text_height * sin_angle,
+            text_width * sin_angle + text_height * cos_angle,
+        )
+
+    def build_word_markup(mot, word_key, x_pos, y_pos, font_size, couleur, rotation):
+        tooltip = escape(word_tooltips.get(word_key, f"Ouvrir un article contenant {mot}"))
+        transform = f' transform="rotate({rotation} {x_pos} {y_pos})"' if rotation else ""
+        text_markup = (
+            f'<text class="cloud-word" x="{x_pos}" y="{y_pos}" font-size="{font_size}" fill="{couleur}" '
+            f'font-family="Trebuchet MS, Segoe UI, Arial, sans-serif" font-style="italic" font-weight="700" '
+            f'text-anchor="middle" dominant-baseline="middle" paint-order="stroke" stroke="#fffdf8" '
+            f'stroke-width="0.12" data-rotation="{rotation}"{transform}>'
+            f"<title>{tooltip}</title>{escape(mot)}</text>"
+        )
+        href = word_links.get(word_key)
+        if href:
+            return (
+                f'<a class="cloud-link" href="{escape(href)}" xlink:href="{escape(href)}" target="_blank" '
+                f'tabindex="0" aria-label="{tooltip}">'
+                f"{text_markup}</a>"
+            )
+        return text_markup
 
     elements = []
 
     for index, (mot, word_key, freq) in enumerate(frequences):
         px = taille(freq)
-        width = len(mot) * px * (0.52 if px >= 38 else 0.56)
-        height = px
+        text_width = len(mot) * px * (0.54 if px >= 38 else 0.56)
+        text_height = px * 0.9
+        rotation = get_word_orientation(index, mot, px)
+        width, height = rotated_bounds(text_width, text_height, rotation)
         couleur = rng.choice(couleurs)
         placed = False
 
         base_angle = rng.random() * math.tau
-        for step in range(260):
-            radius = 12 + step * 2.8
-            angle = base_angle + step * 0.43 + index * 0.21
-            x_pos = centre_x + math.cos(angle) * radius * 1.08
-            y_pos = centre_y + math.sin(angle) * radius * 0.84
+        for step in range(1100):
+            radius = 3 + step * 1.05
+            angle = base_angle + step * 0.27 + index * 0.17
+            x_pos = centre_x + math.cos(angle) * radius * 1.0
+            y_pos = centre_y + math.sin(angle) * radius * 0.74
 
             if not chevauche(x_pos, y_pos, width, height) and not hors_cadre(x_pos, y_pos, width, height):
-                boites.append((x_pos - width / 2, y_pos - height, x_pos + width / 2, y_pos))
-                tooltip = escape(word_tooltips.get(word_key, f"Ouvrir un article contenant {mot}"))
-                text_markup = (
-                    f'<text class="cloud-word" x="{x_pos}" y="{y_pos}" font-size="{px}" fill="{couleur}" '
-                    f'font-family="Georgia, serif" text-anchor="middle">'
-                    f"<title>{tooltip}</title>{escape(mot)}</text>"
-                )
-
-                href = word_links.get(word_key)
-                if href:
-                    elements.append(
-                        f'<a class="cloud-link" href="{escape(href)}" xlink:href="{escape(href)}" target="_blank">'
-                        f"{text_markup}</a>"
+                compact_width = width * collision_scale
+                compact_height = height * collision_scale
+                boites.append(
+                    (
+                        x_pos - compact_width / 2,
+                        y_pos - compact_height / 2,
+                        x_pos + compact_width / 2,
+                        y_pos + compact_height / 2,
                     )
-                else:
-                    elements.append(text_markup)
+                )
+                elements.append(build_word_markup(mot, word_key, x_pos, y_pos, px, couleur, rotation))
                 placed = True
                 break
 
         if placed:
             continue
 
-        for _ in range(120):
-            x_pos = rng.randint(int(width / 2) + marge, int(largeur - width / 2) - marge)
-            y_pos = rng.randint(height + marge, hauteur - marge)
+        for _ in range(420):
+            radius = rng.random() ** 2.0
+            angle = rng.random() * math.tau
+            max_x = (largeur - width - 2 * marge) / 2
+            max_y = (hauteur - height - 2 * marge) / 2
+            x_pos = centre_x + math.cos(angle) * radius * max_x
+            y_pos = centre_y + math.sin(angle) * radius * max_y
             if not chevauche(x_pos, y_pos, width, height) and not hors_cadre(x_pos, y_pos, width, height):
-                boites.append((x_pos - width / 2, y_pos - height, x_pos + width / 2, y_pos))
-                tooltip = escape(word_tooltips.get(word_key, f"Ouvrir un article contenant {mot}"))
-                text_markup = (
-                    f'<text class="cloud-word" x="{x_pos}" y="{y_pos}" font-size="{px}" fill="{couleur}" '
-                    f'font-family="Georgia, serif" text-anchor="middle">'
-                    f"<title>{tooltip}</title>{escape(mot)}</text>"
-                )
-                href = word_links.get(word_key)
-                if href:
-                    elements.append(
-                        f'<a class="cloud-link" href="{escape(href)}" xlink:href="{escape(href)}" target="_blank">'
-                        f"{text_markup}</a>"
+                compact_width = width * collision_scale
+                compact_height = height * collision_scale
+                boites.append(
+                    (
+                        x_pos - compact_width / 2,
+                        y_pos - compact_height / 2,
+                        x_pos + compact_width / 2,
+                        y_pos + compact_height / 2,
                     )
-                else:
-                    elements.append(text_markup)
+                )
+                elements.append(build_word_markup(mot, word_key, x_pos, y_pos, px, couleur, rotation))
                 break
 
     if not elements:
@@ -1240,22 +1616,21 @@ def generer_svg_interactif(titres, nb_mots=50, word_links=None, word_tooltips=No
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" '
         f'width="{largeur}" height="{hauteur}" viewBox="0 0 {largeur} {hauteur}" role="img" '
-        f'aria-label="Nuage de mots interactif">'
+        f'aria-label="Nuage de mots interactif" class="wordcloud-svg" onselectstart="return false">'
         "<defs>"
-        '<linearGradient id="cloud-bg" x1="0%" y1="0%" x2="100%" y2="100%">'
-        '<stop offset="0%" stop-color="#fffdf8"/>'
-        '<stop offset="100%" stop-color="#f1eadc"/>'
-        "</linearGradient>"
+        '<filter id="soft-word-shadow" x="-20%" y="-20%" width="140%" height="140%">'
+        '<feDropShadow dx="0" dy="1" stdDeviation="0.45" flood-color="#000000" flood-opacity="0.10"/>'
+        "</filter>"
         "</defs>"
         "<style>"
-        ".cloud-word{transition:transform .18s ease,filter .18s ease,fill .18s ease;transform-box:fill-box;transform-origin:center;letter-spacing:-0.02em;}"
-        ".cloud-link{text-decoration:none;}"
+        ".wordcloud-svg,.cloud-word,.cloud-link{user-select:none;-webkit-user-select:none;-ms-user-select:none;}"
+        ".cloud-word{transition:filter .18s ease,fill .18s ease;letter-spacing:0;pointer-events:visiblePainted;filter:url(#soft-word-shadow);}"
+        ".cloud-link{text-decoration:none;outline:none;}"
         ".cloud-link .cloud-word{cursor:pointer;}"
-        ".cloud-link:hover .cloud-word,.cloud-link:focus .cloud-word{transform:scale(1.12);filter:drop-shadow(0 0 12px rgba(15,118,110,.24));fill:#0b4f4a;}"
+        ".cloud-link:hover .cloud-word,.cloud-link:focus .cloud-word{filter:drop-shadow(0 0 12px rgba(15,118,110,.24));fill:#0b4f4a;}"
+        ".cloud-link:focus .cloud-word{stroke:#d7c8ad;stroke-width:1.2;}"
         "</style>"
-        f'<rect x="0.5" y="0.5" width="{largeur - 1}" height="{hauteur - 1}" rx="22" fill="url(#cloud-bg)" stroke="#d7c8ad"/>'
-        f'<circle cx="{int(largeur * 0.12)}" cy="{int(hauteur * 0.17)}" r="70" fill="#0f766e" opacity=".05"/>'
-        f'<circle cx="{int(largeur * 0.87)}" cy="{int(hauteur * 0.8)}" r="84" fill="#c46a2f" opacity=".045"/>'
+        f'<rect x="0.5" y="0.5" width="{largeur - 1}" height="{hauteur - 1}" rx="18" fill="#fffdf8" stroke="#eadfca"/>'
         + "".join(elements)
         + "</svg>"
     )

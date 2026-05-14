@@ -7,91 +7,160 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --ink:    #18201e;
-      --muted:  #5a6b65;
-      --paper:  #faf8f3;
-      --card:   rgba(255,253,247,0.96);
-      --line:   #ddd4be;
-      --teal:   #0c6b63;
-      --teal-s: #d4ede9;
-      --warn:   #fff1ea;
-      --warn-b: rgba(195,90,40,.35);
-      --warn-t: #8b3b12;
-      --sh:     0 20px 50px rgba(40,30,15,.10);
-      --r:      26px;
+      --ink:     #18201e;
+      --muted:   #5a6b65;
+      --card:    rgba(255,253,247,0.97);
+      --line:    #ddd4be;
+      --teal:    #0c6b63;
+      --teal-d:  #095b55;
+      --teal-s:  #d4ede9;
+      --warn:    #fff1ea;
+      --warn-b:  rgba(195,90,40,.35);
+      --warn-t:  #8b3b12;
+      --success: #1f6844;
+      --sh:      0 12px 40px rgba(30,22,10,.09);
+      --r:       22px;
     }
-    body { font-family: Georgia,"Times New Roman",serif; color: var(--ink); background: linear-gradient(160deg,#f6f3eb 0%,#ede6d5 100%); min-height: 100vh; }
+    body { font-family: Georgia,"Times New Roman",serif; color: var(--ink); background: linear-gradient(155deg,#f5f2e9 0%,#ede6d5 100%); min-height: 100vh; }
 
-    /* NAV */
-    .nav { position:sticky; top:0; z-index:100; background:rgba(250,248,243,.92); backdrop-filter:blur(14px); border-bottom:1px solid var(--line); padding:0 clamp(16px,4vw,48px); display:flex; align-items:center; height:62px; }
-    .nav-brand { display:flex; align-items:center; gap:10px; text-decoration:none; color:var(--ink); font-weight:700; font-size:1.05rem; margin-right:auto; }
+    /* ── NAV ── */
+    .nav { position:sticky; top:0; z-index:100; background:rgba(250,248,243,.96); backdrop-filter:blur(14px); border-bottom:1px solid var(--line); padding:0 clamp(14px,3vw,44px); display:flex; align-items:center; height:60px; }
+    .nav-brand { display:flex; align-items:center; gap:9px; text-decoration:none; color:var(--ink); font-weight:700; font-size:1.04rem; margin-right:auto; flex-shrink:0; }
     .nav-brand svg { color:var(--teal); }
-    .nav-links { display:flex; align-items:center; gap:4px; }
-    .nav-links a { display:inline-flex; align-items:center; gap:7px; padding:8px 14px; border-radius:999px; text-decoration:none; color:var(--muted); font-family:"Trebuchet MS",sans-serif; font-size:.84rem; font-weight:700; transition:background .15s,color .15s; }
+    .nav-links { display:flex; align-items:center; gap:2px; }
+    .nav-links a { display:inline-flex; align-items:center; gap:6px; padding:7px 14px; border-radius:999px; text-decoration:none; color:var(--muted); font-family:"Trebuchet MS",sans-serif; font-size:.84rem; font-weight:700; transition:background .15s,color .15s; white-space:nowrap; }
     .nav-links a:hover, .nav-links a.active { background:var(--teal-s); color:var(--teal); }
-    .nav-sep { width:1px; height:24px; background:var(--line); margin:0 8px; }
-    .nav-user { display:inline-flex; align-items:center; gap:8px; padding:8px 16px; border-radius:999px; background:var(--teal); color:#fff; text-decoration:none; font-family:"Trebuchet MS",sans-serif; font-size:.84rem; font-weight:700; }
-    .nav-links .nav-user { color:#fff; }
-    .nav-links .nav-user:hover { background:#095b55; color:#fff; }
+    .nav-sep { width:1px; height:22px; background:var(--line); margin:0 8px; flex-shrink:0; }
+    .nav-home { background:var(--teal) !important; color:#fff !important; border:none; box-shadow:0 4px 14px rgba(12,107,99,.25); }
+    .nav-home:hover { background:var(--teal-d) !important; color:#fff !important; transform:translateY(-1px); box-shadow:0 6px 18px rgba(12,107,99,.35); }
+    .nav-cta { background:var(--teal) !important; color:#fff !important; padding:8px 18px !important; border-radius:999px; }
+    .nav-cta:hover { background:var(--teal-d) !important; color:#fff !important; }
 
-    /* LAYOUT */
-    .page { width:min(1160px,calc(100% - 32px)); margin:0 auto; padding:36px 0 72px; }
+    /* ── PAGE ── */
+    .page { width:min(1200px,calc(100% - 28px)); margin:0 auto; padding:28px 0 72px; }
 
-    /* CARD generic */
+    /* ── CARD ── */
     .card { background:var(--card); border:1px solid rgba(221,212,190,.9); border-radius:var(--r); box-shadow:var(--sh); }
 
-    /* HERO */
-    .hero { padding:32px 36px; display:flex; justify-content:space-between; align-items:flex-end; gap:20px; }
-    .badge { display:inline-flex; align-items:center; gap:8px; padding:8px 14px; border-radius:999px; background:var(--teal-s); color:var(--teal); font-family:"Trebuchet MS",sans-serif; font-size:.74rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; }
-    h1 { margin-top:16px; font-size:clamp(2rem,4vw,3.2rem); line-height:1.05; }
-    .hero p { margin-top:12px; color:var(--muted); line-height:1.74; font-size:1.04rem; max-width:58ch; }
-    .btn { display:inline-flex; align-items:center; gap:8px; min-height:48px; padding:0 20px; border-radius:999px; font-family:"Trebuchet MS",sans-serif; font-size:.9rem; font-weight:700; text-decoration:none; cursor:pointer; border:none; transition:transform .18s; }
-    .btn:hover { transform:translateY(-2px); }
-    .btn-primary { background:var(--teal); color:#fff; }
-    .btn-ghost   { background:#fffdf8; color:var(--ink); border:1px solid var(--line); }
-    .btn-back    { background:#fffdf8; color:var(--ink); border:1px solid var(--line); white-space:nowrap; }
+    /* ── HERO ── */
+    .hero { padding:26px 32px; display:flex; justify-content:space-between; align-items:center; gap:20px; }
+    .badge { display:inline-flex; align-items:center; gap:7px; padding:7px 14px; border-radius:999px; background:var(--teal-s); color:var(--teal); font-family:"Trebuchet MS",sans-serif; font-size:.72rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; }
+    h1 { margin-top:12px; font-size:clamp(1.7rem,3.5vw,2.5rem); line-height:1.08; }
+    .hero-desc { margin-top:10px; color:var(--muted); line-height:1.7; font-size:.97rem; max-width:52ch; }
+    .btn-back { display:inline-flex; align-items:center; gap:7px; min-height:44px; padding:0 20px; border-radius:999px; background:#fffdf8; color:var(--ink); border:1px solid var(--line); text-decoration:none; font-family:"Trebuchet MS",sans-serif; font-size:.88rem; font-weight:700; white-space:nowrap; transition:border-color .15s,color .15s; flex-shrink:0; }
+    .btn-back:hover { border-color:var(--teal); color:var(--teal); }
 
-    /* SEARCH FORM */
-    .search-card { margin-top:18px; padding:28px; display:grid; gap:20px; }
-    .grid-fields { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px; }
-    .field { display:grid; gap:8px; }
-    .field label { font-family:"Trebuchet MS",sans-serif; text-transform:uppercase; letter-spacing:.1em; font-size:.72rem; font-weight:700; color:var(--muted); }
-    .field input, .field select { min-height:52px; border-radius:14px; border:1px solid var(--line); background:#fffdf9; color:var(--ink); padding:0 16px; font-size:.98rem; font-family:inherit; width:100%; }
-    .field input:focus, .field select:focus { outline:3px solid rgba(12,107,99,.14); border-color:rgba(12,107,99,.45); }
+    /* ── SEARCH FORM — champs bien espacés ── */
+    .search-card { margin-top:18px; padding:24px 30px; }
+    .filter-row { display:flex; gap:16px; align-items:flex-end; flex-wrap:wrap; }
+    .f { display:grid; gap:7px; }
+    .f label { font-family:"Trebuchet MS",sans-serif; text-transform:uppercase; letter-spacing:.09em; font-size:.68rem; font-weight:700; color:var(--muted); white-space:nowrap; }
+    .f input, .f select { min-height:50px; border-radius:13px; border:1.5px solid var(--line); background:#fffdf9; color:var(--ink); padding:0 16px; font-size:.94rem; font-family:inherit; width:100%; transition:border-color .15s,box-shadow .15s; }
+    .f input:focus, .f select:focus { outline:none; border-color:var(--teal); box-shadow:0 0 0 3px rgba(12,107,99,.10); }
 
-    /* advanced */
-    details.advanced { border:1px solid var(--line); border-radius:18px; padding:18px; background:rgba(255,255,255,.5); }
-    details.advanced summary { cursor:pointer; font-family:"Trebuchet MS",sans-serif; color:var(--teal); font-size:.86rem; font-weight:700; list-style:none; display:flex; align-items:center; gap:8px; }
-    details.advanced summary::before { content:"▸"; transition:transform .2s; }
-    details[open].advanced summary::before { transform:rotate(90deg); }
-    details.advanced p { margin:12px 0 16px; color:var(--muted); line-height:1.68; }
-    .form-actions { display:flex; flex-wrap:wrap; gap:12px; align-items:center; }
+    /* Tailles de champs fixes et explicites */
+    .f-source  { flex:0 0 130px; }
+    .f-keyword { flex:1 1 180px; min-width:120px; }
+    .f-theme   { flex:0 0 120px; }
+    .f-date    { flex:0 0 155px; }
+    .f-count   { flex:0 0 110px; }
 
-    /* RESULTS */
-    .results-bar { margin-top:18px; padding:16px 24px; display:flex; justify-content:space-between; align-items:center; gap:12px; }
-    .count-tag { font-family:"Trebuchet MS",sans-serif; text-transform:uppercase; letter-spacing:.1em; font-size:.72rem; font-weight:700; color:var(--teal); }
-    .results-bar strong { display:block; margin-top:4px; font-size:1.25rem; }
+    .filter-btns { display:flex; gap:10px; align-items:flex-end; flex-shrink:0; }
+    .btn-search { display:inline-flex; align-items:center; gap:8px; min-height:50px; padding:0 22px; border-radius:999px; border:none; cursor:pointer; background:var(--teal); color:#fff; font-family:"Trebuchet MS",sans-serif; font-size:.9rem; font-weight:700; transition:background .15s,transform .1s; white-space:nowrap; }
+    .btn-search:hover { background:var(--teal-d); transform:translateY(-1px); }
+    .btn-reset { display:inline-flex; align-items:center; justify-content:center; min-height:50px; padding:0 18px; border-radius:999px; border:1.5px solid var(--line); background:#fffdf8; color:var(--muted); text-decoration:none; font-family:"Trebuchet MS",sans-serif; font-size:.9rem; font-weight:700; transition:border-color .15s,color .15s; }
+    .btn-reset:hover { border-color:var(--teal); color:var(--teal); }
 
-    /* ARTICLE LIST */
-    .list-card { margin-top:12px; padding:8px 28px; }
-    .article-list { list-style:none; }
-    .article-item { display:grid; grid-template-columns:168px 1fr; gap:20px; padding:22px 0; border-bottom:1px solid rgba(221,212,190,.75); }
-    .article-item:last-child { border-bottom:none; }
-    .thumb { width:168px; height:116px; border-radius:16px; overflow:hidden; background:#ece5d8; border:1px solid rgba(221,212,190,.85); display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:.88rem; text-align:center; padding:10px; flex-shrink:0; }
-    .thumb img { width:100%; height:100%; object-fit:cover; display:block; }
-    .article-body { display:flex; flex-direction:column; justify-content:center; }
-    .article-title a { color:var(--ink); text-decoration:none; font-size:1.32rem; line-height:1.4; font-weight:700; }
-    .article-title a:hover { color:var(--teal); }
-    .meta { margin-top:10px; font-family:"Trebuchet MS",sans-serif; text-transform:uppercase; letter-spacing:.1em; font-size:.72rem; font-weight:700; color:var(--muted); }
+    details.adv { margin-top:16px; border:1px solid var(--line); border-radius:14px; padding:14px 18px; background:rgba(255,255,255,.4); }
+    details.adv summary { cursor:pointer; font-family:"Trebuchet MS",sans-serif; color:var(--teal); font-size:.84rem; font-weight:700; list-style:none; display:flex; align-items:center; gap:7px; }
+    details.adv summary::before { content:"▸"; transition:transform .2s; }
+    details[open].adv summary::before { transform:rotate(90deg); }
+    details.adv .filter-row { margin-top:14px; }
+    .f-adv { flex:1; min-width:160px; }
 
-    /* EMPTY / ERROR */
-    .empty { margin-top:18px; padding:36px 28px; text-align:center; color:var(--muted); line-height:1.72; font-size:1.04rem; }
-    .error-box { margin-top:16px; padding:16px 20px; border-radius:18px; background:var(--warn); border:1px solid var(--warn-b); color:var(--warn-t); }
+    /* ── MESSAGES ── */
+    .alert-ok  { margin-top:16px; padding:14px 20px; border-radius:14px; background:#e5f3ea; border:1px solid rgba(31,104,68,.22); color:var(--success); font-size:.96rem; line-height:1.6; }
+    .alert-err { margin-top:16px; padding:14px 20px; border-radius:14px; background:var(--warn); border:1px solid var(--warn-b); color:var(--warn-t); font-size:.96rem; line-height:1.6; }
 
-    @media(max-width:740px){
-      .hero { flex-direction:column; align-items:flex-start; padding:24px; }
-      .article-item { grid-template-columns:1fr; }
-      .thumb { width:100%; height:200px; }
+    /* ══ SECTION CATÉGORIES ══ */
+    .cats-section { margin-top:24px; padding:28px 32px; }
+    .cats-top { display:flex; justify-content:space-between; align-items:flex-start; gap:24px; flex-wrap:wrap; padding-bottom:22px; border-bottom:1.5px solid var(--line); margin-bottom:22px; }
+    .cats-title-block .badge { margin-bottom:10px; }
+    .cats-title-block h2 { font-size:1.5rem; line-height:1.12; }
+    .cat-create-form { display:flex; gap:10px; align-items:center; flex-wrap:wrap; padding:16px 20px; background:rgba(212,237,233,.25); border:1px solid rgba(12,107,99,.15); border-radius:16px; }
+    .cat-create-form input[type=text] { min-height:46px; border-radius:12px; border:1.5px solid var(--line); background:#fffdf9; color:var(--ink); padding:0 14px; font-size:.93rem; font-family:inherit; width:200px; transition:border-color .15s; }
+    .cat-create-form input:focus { outline:none; border-color:var(--teal); box-shadow:0 0 0 3px rgba(12,107,99,.10); }
+    .btn-create { display:inline-flex; align-items:center; gap:6px; min-height:46px; padding:0 20px; border-radius:999px; border:none; cursor:pointer; background:var(--teal); color:#fff; font-family:"Trebuchet MS",sans-serif; font-size:.88rem; font-weight:700; white-space:nowrap; transition:background .15s; }
+    .btn-create:hover { background:var(--teal-d); }
+    .cats-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(min(300px,100%), 1fr)); gap:14px; }
+    .cat-card { background:rgba(255,255,255,.6); border:1.5px solid rgba(221,212,190,.85); border-radius:18px; overflow:hidden; transition:border-color .15s,box-shadow .15s; }
+    .cat-card:hover { box-shadow:0 4px 20px rgba(30,22,10,.08); }
+    .cat-card.open { border-color:rgba(12,107,99,.4); background:rgba(255,255,255,.85); box-shadow:0 6px 28px rgba(12,107,99,.12); }
+    .cat-head { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; padding:16px 18px; cursor:default; }
+    .cat-name { font-size:1.02rem; font-weight:700; }
+    .cat-desc { margin-top:3px; color:var(--muted); font-size:.86rem; line-height:1.5; }
+    .cat-count { margin-top:6px; font-family:"Trebuchet MS",sans-serif; font-size:.69rem; text-transform:uppercase; letter-spacing:.09em; color:var(--teal); font-weight:700; }
+    .cat-actions { display:flex; gap:5px; align-items:center; flex-shrink:0; }
+    .btn-voir { display:inline-flex; align-items:center; gap:4px; min-height:34px; padding:0 13px; border-radius:999px; background:var(--teal-s); color:var(--teal); border:none; font-family:"Trebuchet MS",sans-serif; font-size:.8rem; font-weight:700; white-space:nowrap; cursor:pointer; transition:background .15s; }
+    .btn-voir:hover { background:#b8e0da; }
+    .btn-del-cat { display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:999px; border:1.5px solid rgba(195,90,40,.25); background:rgba(255,241,234,.6); color:#8b3b12; font-size:.78rem; cursor:pointer; transition:background .15s; }
+    .btn-del-cat:hover { background:rgba(255,210,190,.9); }
+    .cat-body { border-top:1px solid var(--line); padding:16px 18px; display:none; }
+    .cat-body.open { display:block; }
+    .cat-meta-row { display:flex; gap:14px; flex-wrap:wrap; margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid rgba(221,212,190,.5); font-family:"Trebuchet MS",sans-serif; font-size:.73rem; color:var(--muted); align-items:center; }
+    .cat-status { color:var(--teal); font-weight:700; margin-left:auto; }
+    .cat-arts { list-style:none; display:grid; gap:9px; margin-bottom:14px; }
+    .cat-art { padding:10px 12px; border-radius:12px; background:rgba(255,255,255,.7); border:1px solid rgba(221,212,190,.7); display:flex; gap:9px; align-items:flex-start; justify-content:space-between; }
+    .cat-art-info { flex:1; min-width:0; }
+    .cat-art-link { color:var(--ink); text-decoration:none; font-size:.9rem; line-height:1.42; display:block; font-style:italic; }
+    .cat-art-link:hover { color:var(--teal); }
+    .cat-art-meta { color:var(--muted); font-size:.74rem; margin-top:3px; }
+    .btn-retirer { min-height:28px; padding:0 10px; border-radius:999px; border:1px solid rgba(221,212,190,.9); background:#fffdf8; color:var(--muted); font-family:"Trebuchet MS",sans-serif; font-size:.74rem; font-weight:700; cursor:pointer; white-space:nowrap; flex-shrink:0; transition:border-color .15s,color .15s; }
+    .btn-retirer:hover { border-color:rgba(195,90,40,.4); color:#8b3b12; }
+    .cat-add { display:flex; gap:8px; margin-top:4px; }
+    .cat-add input { flex:1; min-height:44px; border-radius:11px; border:1.5px solid var(--line); background:#fffdf9; color:var(--ink); padding:0 13px; font-size:.9rem; font-family:inherit; transition:border-color .15s; }
+    .cat-add input:focus { outline:none; border-color:var(--teal); box-shadow:0 0 0 3px rgba(12,107,99,.10); }
+    .btn-add-art { min-height:44px; padding:0 16px; border-radius:999px; border:none; cursor:pointer; background:var(--teal); color:#fff; font-family:"Trebuchet MS",sans-serif; font-size:.86rem; font-weight:700; white-space:nowrap; transition:background .15s; }
+    .btn-add-art:hover { background:var(--teal-d); }
+    .cats-empty { padding:26px; border-radius:16px; background:rgba(255,255,255,.45); border:1px dashed rgba(221,212,190,.9); color:var(--muted); text-align:center; line-height:1.72; font-size:.94rem; }
+    .cats-login { margin-top:24px; padding:20px; text-align:center; color:var(--muted); background:var(--card); border:1px solid var(--line); border-radius:var(--r); box-shadow:var(--sh); font-size:.95rem; }
+    .cats-login a { color:var(--teal); font-weight:700; text-decoration:none; }
+
+    /* ── SÉPARATEUR ── */
+    .sep { margin:32px 0 22px; border:none; border-top:1.5px solid var(--line); opacity:.45; }
+
+    /* ── RESULTS BAR ── */
+    .results-bar { padding:14px 22px; display:flex; justify-content:space-between; align-items:center; gap:10px; }
+    .count-tag { font-family:"Trebuchet MS",sans-serif; text-transform:uppercase; letter-spacing:.09em; font-size:.7rem; font-weight:700; color:var(--teal); }
+    .results-bar strong { display:block; margin-top:3px; font-size:1.1rem; }
+
+    /* ── SOURCES GRID — colonnes adaptatives ── */
+    .sources-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(min(340px,100%), 1fr)); gap:18px; margin-top:14px; align-items:start; }
+    .source-col { overflow:hidden; border-radius:var(--r); box-shadow:var(--sh); }
+    .source-hdr { background:var(--ink); color:#fff; padding:15px 20px; font-family:"Trebuchet MS",sans-serif; font-size:.92rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; text-align:center; border-radius:var(--r) var(--r) 0 0; }
+    .source-body { background:var(--card); border:1px solid rgba(221,212,190,.9); border-top:none; border-radius:0 0 var(--r) var(--r); }
+    .source-art-list { list-style:none; }
+    .source-art { display:flex; align-items:flex-start; gap:12px; padding:14px 16px; border-bottom:1px solid rgba(221,212,190,.5); transition:background .12s; }
+    .source-art:last-child { border-bottom:none; }
+    .source-art:hover { background:rgba(12,107,99,.04); }
+    .source-art-link { color:var(--ink); text-decoration:none; font-size:.91rem; line-height:1.46; flex:1; font-style:italic; }
+    .source-art-link:hover { color:var(--teal); }
+    .thumb-sm { width:66px; height:52px; border-radius:9px; overflow:hidden; flex-shrink:0; background:#ece5d8; border:1px solid rgba(221,212,190,.7); display:flex; align-items:center; justify-content:center; color:var(--muted); }
+    .thumb-sm img { width:100%; height:100%; object-fit:cover; display:block; }
+
+    /* ── EMPTY ── */
+    .empty-state { padding:48px 28px; text-align:center; color:var(--muted); line-height:1.72; background:var(--card); border:1px solid rgba(221,212,190,.9); border-radius:var(--r); box-shadow:var(--sh); }
+    .empty-state svg { display:block; margin:0 auto 14px; opacity:.5; }
+
+    /* ── RESPONSIVE ── */
+    @media(max-width:640px) {
+      .sources-grid { grid-template-columns:1fr; }
+      .hero { flex-direction:column; align-items:flex-start; padding:20px; }
+      .cats-top { flex-direction:column; }
+      .cat-create-form input[type=text] { width:100%; }
+      .filter-row { gap:12px; }
+      .search-card, .cats-section { padding:18px 20px; }
+      .f-source, .f-date, .f-count { flex:1 1 130px; }
     }
   </style>
 </head>
@@ -99,158 +168,307 @@
 
 <nav class="nav">
   <a class="nav-brand" href="/">
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+    <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
     Veille Actualités
   </a>
   <div class="nav-links">
+    <a href="/" class="nav-home">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      Accueil
+    </a>
     <a href="/articles" class="active">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h12"/></svg>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h12"/></svg>
       Articles
     </a>
     <a href="/subscriptions">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
       Abonnements
     </a>
     <a href="/wordcloud">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
       Nuage de mots
     </a>
     <div class="nav-sep"></div>
     {% if current_user %}
-    <a href="/profile" class="nav-user">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+    <a href="/profile" class="nav-cta">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
       {{ current_user.username }}
     </a>
     {% else %}
-    <a href="/login" class="nav-user">Connexion</a>
+    <a href="/login" class="nav-cta">Connexion</a>
     {% endif %}
   </div>
 </nav>
 
 <div class="page">
 
+  <!-- HERO -->
   <div class="card hero">
     <div>
       <div class="badge">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h12"/></svg>
-        Consultation des articles
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h12"/></svg>
+        Actualités en direct
       </div>
-      <h1>Recherche et lecture des actualités</h1>
-      <p>Filtrez par source, mot-clé, catégorie, période de publication ou historique de consultation.</p>
+      <h1>Recherche &amp; lecture des actualités</h1>
+      <p class="hero-desc">Filtrez par source, mot-clé ou période. Gérez vos catégories juste en dessous.</p>
     </div>
-    <a class="btn btn-back" href="/">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-      Accueil
-    </a>
   </div>
 
+  <!-- BARRE DE RECHERCHE -->
   <form class="card search-card" method="GET" action="/articles">
-    <div class="grid-fields">
-      <div class="field">
+    <div class="filter-row">
+      <div class="f f-source">
         <label for="source_name">Source</label>
         <select id="source_name" name="source_name">
-          <option value="">Toutes les sources</option>
+          <option value="">Toutes</option>
           {% for s in sources %}
           <option value="{{ s }}" {% if s == source %}selected{% endif %}>{{ s }}</option>
           {% endfor %}
         </select>
       </div>
-      <div class="field">
+      <div class="f f-keyword">
         <label for="keyword">Mot dans le titre</label>
-        <input type="text" id="keyword" name="keyword" value="{{ keyword }}" placeholder="ex : climat" />
+        <input type="text" id="keyword" name="keyword" value="{{ keyword }}" placeholder="ex : football" />
       </div>
-      <div class="field">
-        <label for="category">Catégorie</label>
+      <div class="f f-theme">
+        <label for="category">Thème</label>
         <select id="category" name="category">
-          <option value="">Toutes les catégories</option>
+          <option value="">Tous</option>
           {% for value, label in categories %}
           <option value="{{ value }}" {% if value == category %}selected{% endif %}>{{ label }}</option>
           {% endfor %}
         </select>
       </div>
-      <div class="field">
+      <div class="f f-date">
         <label for="date_debut">Date début</label>
         <input type="date" id="date_debut" name="date_debut" value="{{ date_debut }}" />
       </div>
-      <div class="field">
+      <div class="f f-date">
         <label for="date_fin">Date fin</label>
         <input type="date" id="date_fin" name="date_fin" value="{{ date_fin }}" />
       </div>
-      <div class="field">
-        <label for="nb_articles">Nombre d'articles</label>
+      <div class="f f-count">
+        <label for="nb_articles">Par source</label>
         <select id="nb_articles" name="nb_articles">
-          <option value="10"  {% if nb_articles == 10  or nb_articles == "10"  %}selected{% endif %}>10</option>
-          <option value="20"  {% if nb_articles == 20  or nb_articles == "20"  %}selected{% endif %}>20</option>
-          <option value="30"  {% if nb_articles == 30  or nb_articles == "30"  %}selected{% endif %}>30</option>
-          <option value="50"  {% if nb_articles == 50  or nb_articles == "50"  %}selected{% endif %}>50</option>
-          <option value="100" {% if nb_articles == 100 or nb_articles == "100" %}selected{% endif %}>100</option>
+          <option value="10"  {% if nb_articles == 10  %}selected{% endif %}>10</option>
+          <option value="20"  {% if nb_articles == 20  %}selected{% endif %}>20</option>
+          <option value="30"  {% if nb_articles == 30  %}selected{% endif %}>30</option>
+          <option value="50"  {% if nb_articles == 50  %}selected{% endif %}>50</option>
+          <option value="100" {% if nb_articles == 100 %}selected{% endif %}>100</option>
         </select>
+      </div>
+      <div class="filter-btns">
+        <button class="btn-search" type="submit">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          Rechercher
+        </button>
+        <a class="btn-reset" href="/articles" title="Réinitialiser">✕</a>
       </div>
     </div>
 
-    <details class="advanced" {% if consulted_after or consulted_before %}open{% endif %}>
+    <details class="adv" {% if consulted_after or consulted_before %}open{% endif %}>
       <summary>Filtres avancés — par date de consultation</summary>
-      <p>Retrouvez les articles déjà ouverts pendant une plage de dates précise.</p>
-      <div class="grid-fields" style="margin-top:0;">
-        <div class="field">
+      <div class="filter-row">
+        <div class="f f-adv">
           <label for="consulted_after">Consulté après</label>
           <input type="datetime-local" id="consulted_after" name="consulted_after" value="{{ consulted_after }}" />
         </div>
-        <div class="field">
+        <div class="f f-adv">
           <label for="consulted_before">Consulté avant</label>
           <input type="datetime-local" id="consulted_before" name="consulted_before" value="{{ consulted_before }}" />
         </div>
       </div>
     </details>
-
-    <div class="form-actions">
-      <button class="btn btn-primary" type="submit">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-        Rechercher
-      </button>
-      <a class="btn btn-ghost" href="/articles">Réinitialiser</a>
-    </div>
   </form>
 
-  {% if erreur %}
-  <div class="error-box">{{ erreur }}</div>
+  <!-- MESSAGES -->
+  {% if success %}<div class="alert-ok">{{ success }}</div>{% endif %}
+  {% if erreur %}<div class="alert-err">{{ erreur }}</div>{% endif %}
+
+  <!-- ══ SECTION CATÉGORIES ══ -->
+  {% if current_user %}
+  <section class="cats-section card" id="categories">
+
+    <div class="cats-top">
+      <div class="cats-title-block">
+        <div class="badge">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+          Mes catégories
+        </div>
+        <h2>Organiser mes articles</h2>
+      </div>
+      <form class="cat-create-form" method="POST" action="/categories/add">
+        <input type="text" name="name" placeholder="Nom de la catégorie…" required maxlength="80" />
+        <input type="text" name="description" placeholder="Description (optionnel)" maxlength="200" />
+        <button class="btn-create" type="submit">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Créer
+        </button>
+      </form>
+    </div>
+
+    {% if user_categories %}
+    <div class="cats-grid">
+      {% for cat in user_categories %}
+      <div class="cat-card" id="cat-{{ cat._id }}">
+
+        <div class="cat-head">
+          <div>
+            <div class="cat-name">{{ cat.name }}</div>
+            {% if cat.description %}<div class="cat-desc">{{ cat.description }}</div>{% endif %}
+            <div class="cat-count">{{ (cat._articles or []) | length }} article(s)</div>
+          </div>
+          <div class="cat-actions">
+            <button class="btn-voir" type="button" onclick="toggleCat('{{ cat._id }}')" id="btn-voir-{{ cat._id }}">
+              <svg id="voir-ico-{{ cat._id }}" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>
+              <span id="voir-lbl-{{ cat._id }}">Voir</span>
+            </button>
+            <form method="POST" action="/categories/{{ cat._id }}/delete" style="display:inline" onsubmit="return confirm('Supprimer « {{ cat.name }} » ?')">
+              <button class="btn-del-cat" type="submit" title="Supprimer cette catégorie">✕</button>
+            </form>
+          </div>
+        </div>
+
+        <div class="cat-body" id="cat-body-{{ cat._id }}">
+          <div class="cat-meta-row">
+            <span>Créé le {{ cat.created_at | format_date }}</span>
+            <span>Modifié le {{ cat.updated_at | format_date }}</span>
+            <span class="cat-status">✓ Enregistré</span>
+          </div>
+
+          {% if cat._articles %}
+          <ul class="cat-arts">
+            {% for art in cat._articles %}
+            <li class="cat-art">
+              <div class="cat-art-info">
+                <a class="cat-art-link" href="/article/{{ art._id }}/open" target="_blank">{{ art.title }}</a>
+                <div class="cat-art-meta">{{ art.source_name }} · {{ art.publication_date | format_date }}</div>
+              </div>
+              <form method="POST" action="/categories/{{ cat._id }}/remove-article" style="display:inline">
+                <input type="hidden" name="article_id" value="{{ art._id }}" />
+                <button class="btn-retirer" type="submit">Retirer</button>
+              </form>
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <p style="color:var(--muted);font-size:.91rem;margin-bottom:14px;">Aucun article dans cette catégorie.</p>
+          {% endif %}
+
+          <form class="cat-add" method="POST" action="/categories/{{ cat._id }}/add-article">
+            <input type="text" name="article_url_or_id" placeholder="Coller le lien ou l'identifiant d'un article…" autocomplete="off" />
+            <button class="btn-add-art" type="submit">Ajouter</button>
+          </form>
+        </div>
+
+      </div>
+      {% endfor %}
+    </div>
+
+    {% else %}
+    <div class="cats-empty">
+      Aucune catégorie pour l'instant.<br>
+      Remplissez le formulaire ci-dessus pour en créer une.
+    </div>
+    {% endif %}
+
+  </section>
+
+  {% else %}
+  <div class="cats-login">
+    <a href="/login?next=%2Farticles%23categories">Connectez-vous</a> pour créer et gérer vos catégories personnelles.
+  </div>
   {% endif %}
 
-  {% if articles %}
+  <!-- SÉPARATEUR -->
+  <hr class="sep" />
+
+  <!-- ══ RÉSULTATS DES ARTICLES ══
+       Utilise grouped_articles (Python) si disponible, sinon groupby Jinja2 en fallback -->
+  {% if grouped_articles is defined %}
+    {% set ga = grouped_articles %}
+  {% else %}
+    {% set ga = articles | groupby('source_name') | list %}
+  {% endif %}
+
+  {% if ga %}
   <div class="card results-bar">
     <div>
       <div class="count-tag">Résultats</div>
-      <strong>{{ articles|length }} article(s) trouvé(s)</strong>
+      <strong>{{ articles | length }} article(s) — {{ ga | length }} source(s)</strong>
     </div>
   </div>
-  <div class="card list-card">
-    <ul class="article-list">
-      {% for article in articles %}
-      <li class="article-item">
-        <div class="thumb">
-          {% if article.image_url %}
-          <img src="{{ article.image_url }}" alt="Illustration" loading="lazy" />
-          {% else %}
-          <span>Pas d'image disponible</span>
-          {% endif %}
-        </div>
-        <div class="article-body">
-          <div class="article-title">
-            <a href="/article/{{ article._id }}/open" target="_blank">{{ article.title }}</a>
-          </div>
-          <div class="meta">{{ article.publication_date | format_date }} &nbsp;·&nbsp; {{ article.source_name }}</div>
-        </div>
-      </li>
-      {% endfor %}
-    </ul>
+
+  <div class="sources-grid">
+    {% for source_name, source_articles in ga %}
+    <div class="source-col">
+      <div class="source-hdr">{{ source_name or 'Source inconnue' }}</div>
+      <div class="source-body">
+        <ul class="source-art-list">
+          {% for article in source_articles %}
+          <li class="source-art">
+            <a class="source-art-link" href="/article/{{ article._id }}/open" target="_blank">{{ article.title }}</a>
+            <div class="thumb-sm">
+              {% if article.image_url %}
+              <img src="{{ article.image_url }}" alt="" loading="lazy" />
+              {% else %}
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+              {% endif %}
+            </div>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+    {% endfor %}
   </div>
+
   {% else %}
-  <div class="card empty">
+  <div class="empty-state">
+    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
     Aucun article trouvé pour ces critères.<br>
     Élargissez les dates, changez la source ou supprimez certains filtres.
   </div>
   {% endif %}
 
 </div>
+
+<script>
+/* ── Accordion catégories (aucun rechargement de page) ── */
+function toggleCat(id) {
+  var body  = document.getElementById('cat-body-' + id);
+  var card  = document.getElementById('cat-' + id);
+  var lbl   = document.getElementById('voir-lbl-' + id);
+  var ico   = document.getElementById('voir-ico-' + id);
+  var isOpen = body.classList.contains('open');
+
+  if (isOpen) {
+    body.classList.remove('open');
+    card.classList.remove('open');
+    lbl.textContent = 'Voir';
+    ico.querySelector('path').setAttribute('d', 'm6 9 6 6 6-6');
+  } else {
+    body.classList.add('open');
+    card.classList.add('open');
+    lbl.textContent = 'Fermer';
+    ico.querySelector('path').setAttribute('d', 'm18 15-6-6-6 6');
+    card.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+  }
+}
+
+/* Auto-ouvrir la catégorie désignée par ?cat= après un rechargement POST */
+document.addEventListener('DOMContentLoaded', function () {
+  var params = new URLSearchParams(window.location.search);
+  var catId  = params.get('cat');
+  if (catId && document.getElementById('cat-' + catId)) {
+    toggleCat(catId);
+  }
+  /* Scroll vers #categories si fragment présent */
+  if (window.location.hash === '#categories') {
+    var sec = document.getElementById('categories');
+    if (sec) setTimeout(function(){ sec.scrollIntoView({behavior:'smooth'}); }, 80);
+  }
+});
+</script>
 </body>
 </html>
