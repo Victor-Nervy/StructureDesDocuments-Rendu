@@ -11,6 +11,7 @@ LEGACY_COLLECTION_NAMES = {
     "articles": "articles",
     "consultations": "consultations",
     "users": "users",
+    "categories": "categories",
 }
 
 
@@ -31,6 +32,7 @@ subscriptions = db[build_collection_name("subscriptions")]
 articles = db[build_collection_name("articles")]
 consultations = db[build_collection_name("consultations")]
 users = db[build_collection_name("users")]
+categories = db[build_collection_name("categories")]
 
 
 def migrate_legacy_collection(logical_name, target_collection):
@@ -97,6 +99,11 @@ def ensure_indexes():
             [
                 IndexModel([("email", ASCENDING)], unique=True, name="users_email_unique"),
                 IndexModel([("username", ASCENDING)], unique=True, name="users_username_unique"),
+            ]
+        )
+        categories.create_indexes(
+            [
+                IndexModel([("user_id", ASCENDING), ("name", ASCENDING)], unique=True, name="categories_user_name_unique"),
             ]
         )
     except PyMongoError as exc:
