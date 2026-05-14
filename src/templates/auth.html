@@ -77,6 +77,8 @@
       background: var(--line);
       margin: 0 10px;
     }
+    .nav-home { background: var(--teal) !important; color: #fff !important; border: none; box-shadow: 0 4px 14px rgba(10,104,96,.25); }
+    .nav-home:hover { background: var(--teal-d) !important; color: #fff !important; transform: translateY(-1px); box-shadow: 0 6px 18px rgba(10,104,96,.35); }
     .nav-cta {
       display: inline-flex;
       align-items: center;
@@ -334,6 +336,10 @@
     Veille Actualites
   </a>
   <div class="nav-links">
+    <a href="/" class="nav-home">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      Accueil
+    </a>
     <a href="/articles">Articles</a>
     <a href="/subscriptions">Abonnements</a>
     <a href="/wordcloud">Nuage de mots</a>
@@ -403,6 +409,7 @@
       <div class="form-title">Se connecter</div>
       <p class="form-subtitle">Entre ton email et ton mot de passe pour acceder au profil et a l'historique.</p>
       <form method="POST" action="/login">
+        {% if request.args.get('next') %}<input type="hidden" name="next" value="{{ request.args.get('next') | e }}" />{% endif %}
         <div class="field">
           <label for="login_email">Adresse e-mail</label>
           <input id="login_email" type="email" name="email" placeholder="vous@exemple.fr" required autocomplete="username" />
