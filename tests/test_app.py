@@ -284,6 +284,16 @@ class AppTests(unittest.TestCase):
         self.assertEqual(response.mimetype, "image/svg+xml")
         self.assertIn("attachment; filename=", response.headers["Content-Disposition"])
 
+    def test_wordcloud_form_accepts_custom_word_count(self):
+        with patch.object(app_module, "build_wordcloud_svg", return_value=("<svg></svg>", None)):
+            response = self.client.get("/wordcloud?nb_mots=150")
+
+        html = response.get_data(as_text=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('type="number"', html)
+        self.assertIn('value="150"', html)
+        self.assertNotIn("<select id=\"nb_mots\"", html)
+
     def test_build_wordcloud_svg_contains_clickable_article_links(self):
         with patch.object(app_module, "articles") as mock_articles:
             mock_articles.find.return_value.sort.return_value = [
@@ -300,6 +310,46 @@ class AppTests(unittest.TestCase):
         self.assertIsNotNone(svg)
         self.assertIn('class="cloud-link"', svg)
         self.assertIn("/article/507f191e810c19729de860ea/open", svg)
+
+    def test_interactive_wordcloud_contains_rotated_words_and_disables_selection(self):
+        titles = [
+            "france tennis football",
+            "france tennis football",
+            "paris rugby mercato",
+            "paris rugby mercato",
+            "rome cyclisme finale",
+            "rome cyclisme finale",
+        ]
+
+        svg = app_module.generer_svg_interactif(titles, nb_mots=8)
+
+        self.assertIsNotNone(svg)
+        self.assertIn('data-rotation="0"', svg)
+        self.assertIn("rotate(-90", svg)
+        self.assertIn("rotate(18", svg)
+        self.assertIn('dominant-baseline="middle"', svg)
+        self.assertIn('font-style="italic"', svg)
+        self.assertIn('font-weight="700"', svg)
+        self.assertIn("user-select:none", svg)
+        self.assertIn('onselectstart="return false"', svg)
+
+    def test_interactive_wordcloud_uses_compact_visual_style(self):
+        titles = [
+            "football tennis ligue coupe finale",
+            "football tennis ligue coupe finale",
+            "basket psg france monde champions",
+            "basket psg france monde champions",
+            "tour rugby victoire saison equipe",
+            "tour rugby victoire saison equipe",
+        ]
+
+        svg = app_module.generer_svg_interactif(titles, nb_mots=20)
+
+        self.assertIsNotNone(svg)
+        self.assertIn('font-style="italic"', svg)
+        self.assertIn('font-weight="700"', svg)
+        self.assertIn('stroke-width="0.12"', svg)
+        self.assertIn('fill="#fffdf8"', svg)
 
     def test_update_single_subscription_route_targets_requested_source(self):
         subscription_id = "507f191e810c19729de860ea"
