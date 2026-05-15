@@ -88,6 +88,16 @@
     /* EMPTY */
     .empty { margin-top:18px; padding:40px 28px; text-align:center; color:var(--muted); line-height:1.74; font-size:1.04rem; }
 
+    /* MOTS INTERACTIFS — survol bleu */
+    .cloud-body .cloud-link { cursor:pointer; }
+    .cloud-body .cloud-link:hover .cloud-word,
+    .cloud-body .cloud-link:focus .cloud-word {
+      fill:#1a5cf5 !important;
+      filter:drop-shadow(0 0 10px rgba(26,92,245,.45)) !important;
+      transition:fill .15s ease, filter .15s ease;
+    }
+    .cloud-body .cloud-link:active .cloud-word { fill:#0e3db0 !important; }
+
     @media(max-width:740px){ .hero { flex-direction:column; align-items:flex-start; padding:24px; } }
   </style>
 </head>
@@ -207,6 +217,22 @@
 </div>
 
 <script>
+/* ── Clic sur un mot → recherche dans Articles ── */
+document.addEventListener('DOMContentLoaded', function () {
+  var cloudBox = document.querySelector('.cloud-body');
+  if (!cloudBox) return;
+
+  cloudBox.addEventListener('click', function (e) {
+    var link = e.target.closest('a.cloud-link');
+    if (!link) return;
+    e.preventDefault();
+    var href = link.getAttribute('href')
+            || link.getAttributeNS('http://www.w3.org/1999/xlink', 'href');
+    if (href) window.location.href = href;
+  });
+});
+
+/* ── Téléchargement SVG côté client ── */
 function downloadSVG() {
   var svgEl = document.querySelector('.cloud-body svg');
   if (!svgEl) { alert('Aucun nuage à télécharger. Générez d\'abord le nuage de mots.'); return; }
@@ -229,7 +255,7 @@ function downloadSVG() {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-  setTimeout(function() { URL.revokeObjectURL(url); }, 150);
+  setTimeout(function () { URL.revokeObjectURL(url); }, 150);
 }
 </script>
 </body>
