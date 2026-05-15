@@ -16,7 +16,9 @@ import requests
 from apscheduler.schedulers.background import BackgroundScheduler
 from bson import ObjectId
 from bson.errors import InvalidId
-from flask import Flask, Response, abort, redirect, render_template, request, session
+from io import BytesIO
+
+from flask import Flask, Response, abort, redirect, render_template, request, send_file, session
 from pymongo.errors import DuplicateKeyError, PyMongoError
 from requests import RequestException
 from requests.adapters import HTTPAdapter
@@ -1672,10 +1674,12 @@ def telecharger_nuage_de_mots():
         filename_parts.append(date_fin)
     filename = "_".join(filename_parts) + ".svg"
 
-    return Response(
-        svg,
+    svg_bytes = BytesIO(('<?xml version="1.0" encoding="utf-8"?>\n' + svg).encode("utf-8"))
+    return send_file(
+        svg_bytes,
         mimetype="image/svg+xml",
-        headers={"Content-Disposition": f'attachment; filename=\"{filename}\"'},
+        as_attachment=True,
+        download_name=filename,
     )
 
 

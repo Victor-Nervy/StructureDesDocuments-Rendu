@@ -152,7 +152,12 @@
       </div>
       <div class="field">
         <label for="nb_mots">Nombre de mots (n)</label>
-        <input type="number" id="nb_mots" name="nb_mots" min="5" step="1" value="{{ request.args.get('nb_mots', '30') }}" />
+        <select id="nb_mots" name="nb_mots">
+          {% set n_actuel = request.args.get('nb_mots', '30') | int %}
+          {% for n in [5, 10, 15, 20, 30, 50, 75, 100, 150] %}
+          <option value="{{ n }}" {% if n_actuel == n %}selected{% endif %}>{{ n }} mots</option>
+          {% endfor %}
+        </select>
       </div>
       <div class="actions">
         <button class="btn btn-primary" type="submit">
@@ -179,10 +184,10 @@
           {% endif %}
         </div>
       </div>
-      <a class="btn btn-download" href="/wordcloud/download?date_debut={{ request.args.get('date_debut', '') }}&date_fin={{ request.args.get('date_fin', '') }}&nb_mots={{ request.args.get('nb_mots', '30') }}">
+      <button class="btn btn-download" type="button" onclick="downloadSVG()">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Télécharger le SVG
-      </a>
+      </button>
     </div>
     <div class="cloud-body">
       {{ svg | safe }}
@@ -200,5 +205,32 @@
   {% endif %}
 
 </div>
+
+<script>
+function downloadSVG() {
+  var svgEl = document.querySelector('.cloud-body svg');
+  if (!svgEl) { alert('Aucun nuage à télécharger. Générez d\'abord le nuage de mots.'); return; }
+
+  var nb    = '{{ request.args.get("nb_mots", "30") }}';
+  var debut = '{{ request.args.get("date_debut", "") }}';
+  var fin   = '{{ request.args.get("date_fin", "") }}';
+  var parts = ['nuage_mots', nb + 'mots'];
+  if (debut) parts.push(debut);
+  if (fin)   parts.push(fin);
+  var filename = parts.join('_') + '.svg';
+
+  var serializer = new XMLSerializer();
+  var svgStr = '<?xml version="1.0" encoding="utf-8"?>\n' + serializer.serializeToString(svgEl);
+  var blob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
+  var url  = URL.createObjectURL(blob);
+  var link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  setTimeout(function() { URL.revokeObjectURL(url); }, 150);
+}
+</script>
 </body>
 </html>
